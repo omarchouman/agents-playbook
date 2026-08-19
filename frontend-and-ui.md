@@ -1,6 +1,6 @@
 # Frontend and UI Practices
 
-Applies to any client-rendered or server-rendered user interface, in any framework —
+Applies to any client-rendered or server-rendered user interface, in any framework:
 React, Vue, Svelte, Angular, Blazor, SwiftUI, Flutter, or plain HTML. Where a rule is
 genuinely framework-specific it says so; everything else is a property of building
 interfaces, not of the library you build them with.
@@ -54,7 +54,7 @@ These four sentences generate most of the rest of this document.
   cheaper than one component with a `variant` prop, a `mode` prop, and four booleans.
   Premature component abstraction is the most common source of unmaintainable UI code.
 - **Never add a boolean prop that changes layout structure.** `isCompact`, `isModal`,
-  `showHeader` — past two of these, the component is really several components sharing a
+  `showHeader`. Past two of these, the component is really several components sharing a
   file. Split it.
 
 ### 2.2 Props and interfaces
@@ -74,10 +74,10 @@ These four sentences generate most of the rest of this document.
   ```
 
 - **Pass data, not accessors.** `<Avatar user={user} />` over `<Avatar userId={id} />`
-  when the parent already has the user — the second forces a second fetch or a global
+  when the parent already has the user. The second forces a second fetch or a global
   lookup and couples a leaf component to your data layer.
 - **Name event props for what happened, not what to do.** `onSubmit`, `onRowSelect`,
-  `onDismiss` — not `handleClick` or `doSave`. The child reports; the parent decides.
+  `onDismiss`, not `handleClick` or `doSave`. The child reports; the parent decides.
 - **Default to the safe value.** A `dangerouslyAllowHtml`-style prop must default to off;
   a `confirmBeforeDelete` prop must default to on.
 
@@ -114,13 +114,13 @@ for another.
 | **URL state** | Current page, filters, tab, search query, opened detail id | The URL. It is shareable, bookmarkable, and survives reload for free. |
 | **Local UI state** | Dropdown open, input draft, hover | `useState` in the component that owns it. |
 | **Shared UI state** | Theme, sidebar collapsed, toast queue | Context or a small global store. Small, serializable, rarely written. |
-| **Form state** | Field values, dirty, errors | A form library or a single reducer — not N `useState` calls. |
+| **Form state** | Field values, dirty, errors | A form library or a single reducer, not N `useState` calls. |
 
 - **Anything a user would expect to survive a refresh or be shareable via link belongs in
   the URL.** Filters, sort order, pagination, active tab, selected entity. This one rule
   eliminates a whole class of "why did my state reset" bugs and makes deep-linking free.
 - **Server state is not application state.** It is a cache of something you do not own. It
-  needs staleness, revalidation, deduplication, and invalidation — which is exactly what
+  needs staleness, revalidation, deduplication, and invalidation, which is exactly what
   a data-fetching library gives you and what a global store does not. Putting fetched data
   into Redux/Pinia/Zustand by hand means reimplementing cache invalidation manually.
 
@@ -130,7 +130,7 @@ for another.
   re-renders across unrelated subtrees and makes components impossible to reuse.
 - **Derive, don't sync.** If `fullName` can be computed from `firstName` and `lastName`,
   compute it during render. Every `useEffect` that writes state in response to other state
-  is a bug in waiting — two sources of truth that will drift.
+  is a bug in waiting: two sources of truth that will drift.
 
   ```js
   // Bad: an extra render, and a window where the two disagree.
@@ -141,13 +141,13 @@ for another.
   ```
 
 - **Reach for a reducer when transitions have rules.** Multiple fields that must change
-  together, or actions only legal in certain states, belong in a reducer or state machine —
+  together, or actions only legal in certain states, belong in a reducer or state machine,
   not scattered `setX` calls whose ordering is load-bearing.
 
 ### 3.3 Effects
 
 `useEffect` (and equivalents) is for **synchronizing with something outside the component
-system** — the DOM, a subscription, a timer, an analytics SDK. It is not a lifecycle hook.
+system**: the DOM, a subscription, a timer, an analytics SDK. It is not a lifecycle hook.
 
 Do not use an effect to:
 - transform data for rendering → compute during render
@@ -192,9 +192,9 @@ input before committing it.
   restore the previous value *and* tell the user it failed. An optimistic update with no
   rollback silently lies about persisted data.
 - **Cancel in-flight requests on unmount and on input change.** Especially search-as-you-
-  type, which should also be debounced (~250–300ms) — with the trailing call guaranteed.
-- **Paginate or virtualize anything unbounded.** Any list that can grow with usage —
-  results, feeds, logs, notifications — needs a limit. Rendering 10,000 rows freezes the
+  type, which should also be debounced (~250–300ms), with the trailing call guaranteed.
+- **Paginate or virtualize anything unbounded.** Any list that can grow with usage, such
+  as results, feeds, logs, or notifications, needs a limit. Rendering 10,000 rows freezes the
   main thread regardless of framework.
 
 ---
@@ -210,7 +210,7 @@ Forms are where most real UI complexity lives. They deserve deliberate design.
   has already errored (so the error clears as they fix it), and always on submit. Validating
   on every keystroke before the user has finished typing is hostile.
 - **Server validation is authoritative; client validation is a courtesy.** Mirror the rules
-  for fast feedback, but always re-check server-side — the client can be bypassed entirely.
+  for fast feedback, but always re-check server-side. The client can be bypassed entirely.
   See `security.md` §4.
 - **Map server field errors back to their fields.** An API returning
   `{ errors: { email: "already taken" } }` should surface next to the email input, not in a
@@ -218,13 +218,13 @@ Forms are where most real UI complexity lives. They deserve deliberate design.
 - **Never clear a user's input on failure.** Retaining what they typed is the difference
   between an annoyance and a lost form.
 - **Disable submit while submitting, not while invalid.** A permanently disabled button
-  with no explanation is a dead end — let them submit and show them what's wrong.
+  with no explanation is a dead end. Let them submit and show them what's wrong.
 - **Associate every input with a `<label>`** via `htmlFor`/`id` or wrapping. Placeholders
   are not labels: they vanish on focus, fail contrast, and are skipped by some screen
   readers.
 - **Wire up autocomplete and input types.** `type="email"`, `inputmode="numeric"`,
   `autocomplete="one-time-code"`, `autocomplete="new-password"`. These change the mobile
-  keyboard and enable password-manager integration — cheap, high-impact.
+  keyboard and enable password-manager integration: cheap, high-impact.
 - **Warn before discarding unsaved changes** on navigation away from a dirty form.
 
 ---
@@ -238,12 +238,12 @@ majority of the value comes from a small number of rules.
 
 - **Use the correct element.** `<button>` for actions, `<a href>` for navigation,
   `<input>`/`<select>` for input, `<ul>/<li>` for lists, `<table>` for tabular data. Never
-  `<div onClick>` — it is not focusable, not keyboard-activatable, and not announced.
+  `<div onClick>`, which is not focusable, not keyboard-activatable, and not announced.
 - **One `<h1>` per page; don't skip heading levels.** Screen-reader users navigate by
   headings the way sighted users skim. Style with CSS, not by picking a different level.
 - **Landmarks**: `<header>`, `<nav>`, `<main>`, `<footer>`. Exactly one `<main>`.
 - **ARIA is a last resort.** The first rule of ARIA is not to use ARIA. Incorrect ARIA is
-  worse than none — `role="button"` on a div still doesn't make it keyboard-operable.
+  worse than none: `role="button"` on a div still doesn't make it keyboard-operable.
 
 ### 6.2 Keyboard
 
@@ -262,15 +262,15 @@ majority of the value comes from a small number of rules.
 
 - **Contrast**: at least 4.5:1 for body text, 3:1 for large text and for the boundaries of
   interactive controls. Verify with a tool; do not eyeball it.
-- **Never convey information by color alone.** Add an icon, label, or pattern — for error
+- **Never convey information by color alone.** Add an icon, label, or pattern for error
   states, chart series, status badges, and diffs.
 - **Every meaningful image needs `alt`; every decorative image needs `alt=""`.** Alt text
   describes function in context, not appearance: an icon-only delete button is
   "Delete invoice", not "trash can icon".
-- **Respect `prefers-reduced-motion`** — disable parallax, autoplay, large transforms.
+- **Respect `prefers-reduced-motion`**: disable parallax, autoplay, large transforms.
 - **Support 200% zoom and 400% at mobile widths** without horizontal scroll or clipping.
   Use relative units (`rem`) for typography and spacing.
-- **Announce async changes** that aren't in the focus path via a polite live region —
+- **Announce async changes** that aren't in the focus path via a polite live region:
   toasts, validation summaries, "3 results found".
 
 ---
@@ -300,11 +300,11 @@ Optimize what users perceive, in the order they perceive it.
   memoization by intuition usually adds cost without benefit.
 - **Fix re-render causes, not symptoms.** A new object/array/function literal in props on
   every render defeats memoization. Move state down, split components, or stabilize the
-  reference — in that order of preference.
+  reference, in that order of preference.
 - **Keep list keys stable and unique.** Never use array index as key for a list that can
-  reorder, insert, or delete — it corrupts component state and DOM identity.
+  reorder, insert, or delete. It corrupts component state and DOM identity.
 - **Virtualize long lists** (roughly >100 rows, or any row with meaningful render cost).
-- **Debounce/throttle high-frequency handlers** — scroll, resize, mousemove, input. Prefer
+- **Debounce/throttle high-frequency handlers**: scroll, resize, mousemove, input. Prefer
   `IntersectionObserver` and `ResizeObserver` over scroll/resize listeners entirely.
 - **Never do heavy synchronous work on the main thread.** Parsing, crypto, image
   processing, large sorts → a Web Worker or the server.
@@ -348,7 +348,7 @@ Lab numbers on a fast laptop tell you almost nothing about your actual users.
 - **Preserve scroll position on back navigation**, reset it on forward navigation.
 - **Handle unknown routes with a real 404 page** that offers a way onward.
 - **Guard protected routes on the server as well as the client.** A client-side redirect
-  is UX, not security — the data must be protected at the API. See `security.md` §3.
+  is UX, not security. The data must be protected at the API. See `security.md` §3.
 
 ---
 
@@ -362,7 +362,7 @@ Lab numbers on a fast laptop tell you almost nothing about your actual users.
   and tell the user. Retry idempotent GETs with backoff; never blind-retry non-idempotent
   requests.
 - **Report client errors to a monitoring service** with enough context (route, release,
-  user id if permitted, breadcrumbs) to reproduce — and **scrub PII before sending**.
+  user id if permitted, breadcrumbs) to reproduce, and **scrub PII before sending**.
 
 ---
 
@@ -372,7 +372,7 @@ Test what the user does, not how the component is built.
 
 - **Query by accessible role and name**, not by CSS class or test id, wherever possible.
   `getByRole('button', { name: 'Save' })` fails when the button stops being announced as a
-  button — which is exactly when you want it to fail.
+  button, which is exactly when you want it to fail.
 - **Never assert on internal state or private methods.** Assert on rendered output and
   emitted events. Tests coupled to implementation break on every refactor and catch nothing.
 - **Mock at the network boundary** (MSW or equivalent), not by stubbing your own modules.
@@ -380,9 +380,9 @@ Test what the user does, not how the component is built.
 - **Test the error and empty paths.** They are the least-tested and most-hit code in most
   applications.
 - **Add an automated accessibility check** (axe) to component tests. It catches contrast,
-  labeling, and role mistakes cheaply — it will not catch keyboard flow, so still test that
+  labeling, and role mistakes cheaply. It will not catch keyboard flow, so still test that
   by hand for critical paths.
-- **Reserve end-to-end tests for critical user journeys** — signup, checkout, the primary
+- **Reserve end-to-end tests for critical user journeys**: signup, checkout, the primary
   workflow. They are slow and flaky at scale; a small, reliable suite beats a large,
   ignored one.
 - **Snapshot tests are for stable, small output only.** Large auto-updated snapshots are
@@ -406,7 +406,7 @@ Recognize these on sight:
 - Business logic (pricing, permissions, tax) computed only on the client.
 - Secrets, API keys, or tokens in client code or env vars shipped to the browser. Anything
   in the bundle is public.
-- `localStorage` used for auth tokens (readable by any XSS) — see `security.md` §2.3.
+- `localStorage` used for auth tokens (readable by any XSS); see `security.md` §2.3.
 - Fixed pixel heights around text.
 - Infinite lists with no virtualization or pagination.
 
