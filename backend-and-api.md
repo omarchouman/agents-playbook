@@ -363,7 +363,7 @@ Conflating them causes restart loops when a database blips.
 - **Do work once**: compute-per-request that could be compute-per-deploy (config parsing,
   regex compilation, template parsing, key derivation) belongs at startup.
 - **Rate-limit every public endpoint**, and more strictly on expensive and auth-related ones.
-  See `security.md` §4.
+  See `security.md` §6.
 
 ---
 

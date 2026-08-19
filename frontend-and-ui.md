@@ -211,7 +211,7 @@ Forms are where most real UI complexity lives. They deserve deliberate design.
   on every keystroke before the user has finished typing is hostile.
 - **Server validation is authoritative; client validation is a courtesy.** Mirror the rules
   for fast feedback, but always re-check server-side — the client can be bypassed entirely.
-  See `security.md` §3.
+  See `security.md` §4.
 - **Map server field errors back to their fields.** An API returning
   `{ errors: { email: "already taken" } }` should surface next to the email input, not in a
   generic banner. Design the error contract for this (see `backend-and-api.md` §4).
@@ -348,7 +348,7 @@ Lab numbers on a fast laptop tell you almost nothing about your actual users.
 - **Preserve scroll position on back navigation**, reset it on forward navigation.
 - **Handle unknown routes with a real 404 page** that offers a way onward.
 - **Guard protected routes on the server as well as the client.** A client-side redirect
-  is UX, not security — the data must be protected at the API. See `security.md` §2.
+  is UX, not security — the data must be protected at the API. See `security.md` §3.
 
 ---
 
@@ -406,7 +406,7 @@ Recognize these on sight:
 - Business logic (pricing, permissions, tax) computed only on the client.
 - Secrets, API keys, or tokens in client code or env vars shipped to the browser. Anything
   in the bundle is public.
-- `localStorage` used for auth tokens (readable by any XSS) — see `security.md` §2.4.
+- `localStorage` used for auth tokens (readable by any XSS) — see `security.md` §2.3.
 - Fixed pixel heights around text.
 - Infinite lists with no virtualization or pagination.
 

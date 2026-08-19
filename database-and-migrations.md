@@ -174,7 +174,7 @@ sequential scan on a large table in a hot query is the finding you're looking fo
 
 - **Always use parameterized queries.** Never build SQL by string concatenation with user
   input — this is SQL injection, the highest-impact and most preventable vulnerability in
-  this document. See `security.md` §3.2. When a table or column name must be dynamic,
+  this document. See `security.md` §4.2. When a table or column name must be dynamic,
   allow-list it against a fixed set; parameters cannot bind identifiers.
 - **Never `SELECT *` in application code.** It breaks when columns are added, transfers data
   you don't need, prevents covering-index-only scans, and hides the fact that you're pulling
