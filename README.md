@@ -17,8 +17,8 @@ it legitimately does not.
 | [`database-and-migrations.md`](database-and-migrations.md) | Schema design, indexing, query performance, transactions, zero-downtime migrations |
 | [`security.md`](security.md) | AuthN/AuthZ, input handling, secrets, transport, dependencies, logging, incident basics |
 
-They overlap deliberately at the seams — validation appears in both backend and security,
-migrations appear in both database and backend — because that is where bugs live.
+They overlap deliberately at the seams. Validation appears in both backend and security,
+and migrations appear in both database and backend, because that is where bugs live.
 
 ## How to use these
 
@@ -45,12 +45,12 @@ git submodule add https://github.com/omarchouman/agents-playbook.git docs/playbo
 
 ### With Codex / AGENTS.md
 
-Point at them from `AGENTS.md` at the repo root, or paste the relevant sections inline —
+Point at them from `AGENTS.md` at the repo root, or paste the relevant sections inline;
 Codex reads `AGENTS.md` from the working directory upward.
 
 ### As a review checklist
 
-Each playbook ends with a **Review checklist** — a condensed, scannable version of the
+Each playbook ends with a **Review checklist**, a condensed, scannable version of the
 whole document. Use it in PR templates, or hand it to a review agent:
 
 > Review this diff against the "Review checklist" section of `backend-and-api.md`.
@@ -63,13 +63,13 @@ whole document. Use it in PR templates, or hand it to a review agent:
   responsibly. Where a rule has a legitimate exception, it says so explicitly.
 - **Examples are illustrative, not prescriptive.** Snippets appear in whatever language
   makes the point clearest. Translate the idea, not the syntax.
-- **"Prefer X" means X unless you can name the reason.** "Never X" means never — the
+- **"Prefer X" means X unless you can name the reason.** "Never X" means never: the
   cases where it seems necessary are usually a design problem one level up.
 
 ## Contributing
 
 These are opinionated by design. If a rule is wrong, or right only in some contexts, open
-an issue with the counter-case — a rule that survives a real counter-example is worth more
+an issue with the counter-case. A rule that survives a real counter-example is worth more
 than one that was never tested.
 
 ## License
