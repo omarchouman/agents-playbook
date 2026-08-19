@@ -34,14 +34,14 @@ query, or shipping any migration.
   user's timezone separately when you need to render or schedule in local time.
 - **Prefer native types over strings**: `BOOLEAN`, `UUID`, `INET`, `JSONB`, `DATE`,
   `INTERVAL`, arrays, enums. `VARCHAR` holding `"true"` is a bug generator.
-- **Always bound `VARCHAR`** — but bound it generously and for a real reason. (In
+- **Always bound `VARCHAR`**, but bound it generously and for a real reason. (In
   PostgreSQL, `TEXT` with a `CHECK` length is equivalent and easier to change.)
 - **Choose your primary key deliberately:**
-  - `BIGINT` identity — smallest, fastest, but sequential and enumerable. Never expose it
+  - `BIGINT` identity: smallest, fastest, but sequential and enumerable. Never expose it
     publicly (see `backend-and-api.md` §2.1).
-  - `UUIDv7` / `ULID` — time-sortable, safe to expose, index-friendly. **Preferred default
+  - `UUIDv7` / `ULID`: time-sortable, safe to expose, index-friendly. **Preferred default
     for new systems.**
-  - `UUIDv4` — random. Safe to expose, but random insertion order causes B-tree page splits
+  - `UUIDv4`: random. Safe to expose, but random insertion order causes B-tree page splits
     and index bloat on large tables. Avoid as a clustered/primary key at scale.
   - **Never use a natural key** (email, username, SKU) as a primary key. Business meaning
     changes; primary keys shouldn't.
@@ -55,12 +55,12 @@ query, or shipping any migration.
 Every one of these is a bug that becomes impossible:
 
 - **`NOT NULL` by default.** Make nullability the exception you can justify. `NULL` means
-  "unknown/not applicable" — never use it for "empty", "zero", or "false".
+  "unknown/not applicable". Never use it for "empty", "zero", or "false".
 - **`FOREIGN KEY` on every reference**, with an explicit `ON DELETE` action:
-  - `RESTRICT` (default choice) — refuse to orphan.
-  - `CASCADE` — only when the child genuinely has no life without the parent, and you have
+  - `RESTRICT` (default choice): refuse to orphan.
+  - `CASCADE`: only when the child genuinely has no life without the parent, and you have
     thought about how many rows one delete could touch.
-  - `SET NULL` — only where the column is nullable and that means something.
+  - `SET NULL`: only where the column is nullable and that means something.
 - **`UNIQUE` on anything that must be unique.** Application-level "check then insert" is a
   race condition, always. Let the constraint fail and handle the error.
 - **`CHECK` constraints for domain rules**: `amount > 0`, `ends_at > starts_at`,
@@ -92,9 +92,9 @@ CREATE UNIQUE INDEX ON subscriptions (account_id) WHERE status = 'active';
 - **Normalize first (3NF).** Duplicated data drifts out of sync; that is a correctness
   problem, not a performance trade-off.
 - **Denormalize only with measurements and a maintenance plan.** A cached `comment_count`
-  must be updated by a trigger or a transaction that also writes the comment — never by
+  must be updated by a trigger or a transaction that also writes the comment, never by
   hopeful application code in one of the three places that inserts comments.
-- **Use `JSONB` for genuinely schemaless data** — third-party payloads, user-defined fields,
+- **Use `JSONB` for genuinely schemaless data**: third-party payloads, user-defined fields,
   event bodies. Do **not** use it to avoid writing a migration: you lose type checking,
   constraints, and query planning, and you will end up validating in five places.
   If you query or filter on a field regularly, promote it to a column.
@@ -117,7 +117,7 @@ Pick one convention per repo and never mix:
   unique constraints must become partial (`… WHERE deleted_at IS NULL`). Missing that filter
   in one query is the classic soft-delete leak.
 - **Hard-delete transient, high-volume, or legally-must-be-erased data.** Retention and
-  erasure obligations (GDPR "right to erasure") override convenience — see `security.md` §8.
+  erasure obligations (GDPR "right to erasure") override convenience; see `security.md` §8.
 - **Consider an archive table** rather than either, when history matters but volume doesn't
   belong in the hot table.
 
@@ -134,9 +134,9 @@ sides matter.
   automatically, and an unindexed FK makes parent deletes and joins table-scan.
 - **Columns in `WHERE`, `JOIN`, `ORDER BY`, and `GROUP BY`** on queries that matter.
 - **Composite indexes follow the leftmost-prefix rule**: an index on `(a, b, c)` serves
-  `WHERE a`, `WHERE a AND b`, and `WHERE a AND b AND c` — but not `WHERE b`. Order columns
+  `WHERE a`, `WHERE a AND b`, and `WHERE a AND b AND c`, but not `WHERE b`. Order columns
   by: equality predicates first, then range predicates, then sort columns.
-- **Partial indexes for skewed queries** — far smaller and cheaper:
+- **Partial indexes for skewed queries**, far smaller and cheaper:
   ```sql
   CREATE INDEX ON jobs (created_at) WHERE status = 'pending';
   ```
@@ -145,11 +145,11 @@ sides matter.
 
 ### 3.2 What not to index
 
-- **Low-cardinality columns alone** (a boolean, a 3-value status) — usually useless as a
+- **Low-cardinality columns alone** (a boolean, a 3-value status): usually useless as a
   standalone index; useful as the *leading* column of a composite or as a partial index
   predicate.
 - **Duplicate and redundant indexes.** `(a)` is redundant when `(a, b)` exists. Audit
-  periodically and drop unused indexes — they cost every write.
+  periodically and drop unused indexes; they cost every write.
 - **Everything, reflexively.** Ten indexes on a write-hot table will dominate its write
   latency.
 
@@ -163,7 +163,7 @@ WHERE name LIKE '%foo'           -- ✗ leading wildcard; use a trigram/full-tex
 WHERE user_id = $1::text         -- ✗ type mismatch forces a cast on the column
 ```
 
-**Verify with `EXPLAIN (ANALYZE, BUFFERS)`** — never assume an index is being used. A
+**Verify with `EXPLAIN (ANALYZE, BUFFERS)`**. Never assume an index is being used. A
 sequential scan on a large table in a hot query is the finding you're looking for.
 
 ---
@@ -173,14 +173,14 @@ sequential scan on a large table in a hot query is the finding you're looking fo
 ### 4.1 Correctness and safety
 
 - **Always use parameterized queries.** Never build SQL by string concatenation with user
-  input — this is SQL injection, the highest-impact and most preventable vulnerability in
+  input. This is SQL injection, the highest-impact and most preventable vulnerability in
   this document. See `security.md` §4.2. When a table or column name must be dynamic,
   allow-list it against a fixed set; parameters cannot bind identifiers.
 - **Never `SELECT *` in application code.** It breaks when columns are added, transfers data
   you don't need, prevents covering-index-only scans, and hides the fact that you're pulling
   a 2MB blob column on every request.
 - **Every query that can return many rows needs a `LIMIT`.**
-- **`UPDATE` and `DELETE` must have a `WHERE` clause.** Review these specifically — run the
+- **`UPDATE` and `DELETE` must have a `WHERE` clause.** Review these specifically: run the
   equivalent `SELECT` first and confirm the row count.
 
 ### 4.2 Performance
@@ -191,8 +191,8 @@ sequential scan on a large table in a hot query is the finding you're looking fo
 - **Filter and aggregate in the database, not in application memory.** Pulling 100k rows to
   count them in code is orders of magnitude slower and will eventually OOM.
 - **Batch writes.** One `INSERT` with 1,000 rows beats 1,000 `INSERT`s by a wide margin.
-  Batch, but bound the batch size — a single 100k-row statement creates its own problems.
-- **Prefer `EXISTS` to `COUNT(*) > 0`** — it can stop at the first match.
+  Batch, but bound the batch size; a single 100k-row statement creates its own problems.
+- **Prefer `EXISTS` to `COUNT(*) > 0`**, since it can stop at the first match.
 - **Beware `COUNT(*)` on large tables** for pagination totals; it scans. Use an approximate
   count, a cached count, or cursor pagination that doesn't need a total.
 - **Stream or chunk large result sets** with a server-side cursor. Never materialize a full
@@ -224,11 +224,11 @@ timestamps will be skipped. Index on `(created_at DESC, id DESC)`.
 ## 5. Transactions
 
 - **Wrap a single logical business operation**, no more and no less.
-- **Keep them short. Never perform I/O inside** — no HTTP calls, no email, no queue
+- **Keep them short. Never perform I/O inside**: no HTTP calls, no email, no queue
   publishes. A remote timeout inside a transaction holds locks for its full duration.
 - **Know your isolation level and its anomalies.** Most databases default to `READ
   COMMITTED`, which permits non-repeatable reads and phantoms. If your logic depends on
-  reading a value and acting on it, `READ COMMITTED` will not protect you — use an explicit
+  reading a value and acting on it, `READ COMMITTED` will not protect you. Use an explicit
   lock, an atomic conditional update, or `SERIALIZABLE` (and be ready to retry on
   serialization failure).
 - **Prevent lost updates explicitly.** Read-modify-write across a round trip is a race:
@@ -243,10 +243,10 @@ timestamps will be skipped. Index on `(created_at DESC, id DESC)`.
   ```
 - **Avoid deadlocks by acquiring locks in a consistent order** across all code paths (e.g.
   always the lower account id first).
-- **Retry serialization/deadlock failures** with backoff — they are expected, not
+- **Retry serialization/deadlock failures** with backoff, since they are expected, not
   exceptional. Only retry when the transaction is safe to replay.
 - **Never hold a transaction open across a user interaction.** Use optimistic concurrency
-  (a `version` column) instead — see `backend-and-api.md` §6.
+  (a `version` column) instead; see `backend-and-api.md` §6.
 
 ---
 
@@ -260,7 +260,7 @@ timestamps will be skipped. Index on `(created_at DESC, id DESC)`.
 - **Migrations are append-only and immutable once merged.** Never edit a migration that has
   run anywhere. Fix forward with a new one.
 - **One logical change per migration**, with a descriptive name and timestamped ordering.
-- **Test every migration against a production-shaped copy** — the same data volume, the same
+- **Test every migration against a production-shaped copy**: the same data volume, the same
   indexes. A migration that takes 50ms on 100 rows can take 40 minutes and lock a table on
   100 million.
 - **Separate schema migrations from data backfills.** Backfills are long-running, batched,
@@ -282,7 +282,7 @@ The pattern, in three deploys:
 | **Migrate** | Backfill in batches | Read from new, keep writing both |
 | **Contract** | Drop the old structure, add `NOT NULL`/constraints | Read and write new only |
 
-**Renaming a column** is not one migration — it is: add `new_name` → dual-write → backfill →
+**Renaming a column** is not one migration. It is: add `new_name` → dual-write → backfill →
 switch reads → stop writing `old_name` → drop `old_name`. Any shortcut breaks in-flight
 requests during the deploy window.
 
@@ -293,9 +293,9 @@ requests during the deploy window.
 - Adding a new table
 - Adding an index **concurrently** (`CREATE INDEX CONCURRENTLY`, outside a transaction)
 - Adding a constraint as `NOT VALID`, then `VALIDATE CONSTRAINT` separately
-- Widening a type (`INT` → `BIGINT` is *not* free in most engines — check yours)
+- Widening a type (`INT` → `BIGINT` is *not* free in most engines; check yours)
 
-**Dangerous — will lock, rewrite, or break running code:**
+**Dangerous. These will lock, rewrite, or break running code:**
 - Dropping or renaming a column or table (breaks old code instantly; `SELECT *` and ORMs
   will fail)
 - Adding a `NOT NULL` column with a default (rewrites the table on older engines)
@@ -327,7 +327,7 @@ ALTER TABLE users VALIDATE CONSTRAINT users_locale_nn;             -- 4. no writ
 
 - **Batch them** (1k–10k rows), commit each batch, and sleep briefly between batches to let
   replication catch up.
-- **Make them resumable and idempotent** — they will be interrupted.
+- **Make them resumable and idempotent**, because they will be interrupted.
 - **Drive them off an indexed column** with a stable order, and log progress.
 - **Run them out-of-band** for large tables, not inside the deploy's migration step.
 
@@ -335,7 +335,7 @@ ALTER TABLE users VALIDATE CONSTRAINT users_locale_nn;             -- 4. no writ
 
 Dropping a column or table deserves its own ritual:
 
-1. Confirm nothing reads it — grep the codebase, and check query logs / `pg_stat_statements`
+1. Confirm nothing reads it: grep the codebase, and check query logs / `pg_stat_statements`
    over a full business cycle.
 2. Ship a release that stops writing it.
 3. Wait long enough to roll back that release without needing the data (at least a full
@@ -350,20 +350,20 @@ Dropping a column or table deserves its own ritual:
 ## 7. Operations
 
 - **Backups are only real if you have restored one.** Schedule a periodic restore drill and
-  measure how long it takes — that number is your actual RTO. Verify point-in-time recovery
+  measure how long it takes. That number is your actual RTO. Verify point-in-time recovery
   works and that the retention window meets your RPO.
 - **Least-privilege database users.** The application user should not be able to `DROP` a
   table. Migrations run under a separate, more privileged user. Read replicas get a
   read-only user.
-- **Connection pooling is mandatory**, sized against the database's connection limit — not
+- **Connection pooling is mandatory**, sized against the database's connection limit, not
   against how many app instances you happen to run. Each connection has a real memory cost.
 - **Monitor**: slow query log, replication lag, connection saturation, cache hit ratio, dead
   tuples/bloat, longest-running transaction, deadlock count, and disk headroom.
 - **Reads on a replica are eventually consistent.** A write followed immediately by a read
-  from a replica can miss it — route read-after-write to the primary.
+  from a replica can miss it, so route read-after-write to the primary.
 - **Never point a test suite, script, or local environment at production.** Enforce it with
   separate credentials, and make the production DSN visibly distinct.
-- **Seed and anonymize.** Development data comes from a generator or a scrubbed dump — never
+- **Seed and anonymize.** Development data comes from a generator or a scrubbed dump, never
   a raw production copy containing real personal data. See `security.md` §8.
 
 ---
@@ -372,7 +372,7 @@ Dropping a column or table deserves its own ritual:
 
 Most of the above still applies; these are the differences that catch people out.
 
-- **Document stores need a schema too** — it just lives in your application and is enforced
+- **Document stores need a schema too**; it just lives in your application and is enforced
   by validation. Version your documents (`schema_version`) so you can migrate them lazily on
   read.
 - **Design the model around your access patterns**, not around your entities. In key-value
@@ -384,8 +384,8 @@ Most of the above still applies; these are the differences that catch people out
 - **Cross-document transactions are limited or absent.** Model together what must change
   together.
 - **Set TTLs and eviction policies on caches deliberately**, and never treat a cache as a
-  system of record — it can vanish entirely at any moment.
-- **Redis specifics**: `KEYS` is O(n) and blocks the server — use `SCAN`. Set `maxmemory` and
+  system of record; it can vanish entirely at any moment.
+- **Redis specifics**: `KEYS` is O(n) and blocks the server, so use `SCAN`. Set `maxmemory` and
   an eviction policy explicitly. Persistence is off or partial by default.
 
 ---
