@@ -1,6 +1,6 @@
 # Backend and API Practices
 
-Applies to any server-side application or service — REST, GraphQL, gRPC, or RPC; monolith
+Applies to any server-side application or service: REST, GraphQL, gRPC, or RPC; monolith
 or microservices; any language. Framework-specific advice is marked as such.
 
 **Read this before:** designing or changing an endpoint, adding a service or module,
@@ -19,7 +19,7 @@ process boundary.
    return garbage, or succeed after you gave up. Design for that, not for the happy path.
 4. **Make operations safe to repeat.** Retries are a fact of distributed systems.
    Idempotence is what makes them harmless.
-5. **If it isn't logged, traced, or measured, it didn't happen** — and you will not be able
+5. **If it isn't logged, traced, or measured, it didn't happen**, and you will not be able
    to debug it at 3am.
 
 ---
@@ -34,7 +34,7 @@ process boundary.
 - **Plural, lowercase, hyphenated collection names**: `/payment-methods`, not
   `/PaymentMethod` or `/payment_methods`. Pick one convention and never mix.
 - **Nest at most one level.** `/users/{id}/orders` is fine; `/users/{id}/orders/{id}/items/{id}`
-  is not — address the deep resource directly at `/order-items/{id}`.
+  is not. Address the deep resource directly at `/order-items/{id}`.
 - **Never expose sequential database ids in public URLs.** They leak volume and enable
   enumeration. Use UUIDv7/ULID (sortable, index-friendly) or a public opaque id.
 
@@ -53,32 +53,32 @@ Use methods and status codes for what they mean. Clients, proxies, and CDNs act 
 | Status | Use it when |
 |---|---|
 | `200` | Success with a body |
-| `201` | Created — include a `Location` header |
-| `202` | Accepted for async processing — return a status URL |
+| `201` | Created; include a `Location` header |
+| `202` | Accepted for async processing; return a status URL |
 | `204` | Success, no body |
 | `400` | Malformed request (unparseable, wrong types) |
 | `401` | Not authenticated, or credentials invalid/expired |
 | `403` | Authenticated but not permitted |
-| `404` | Not found — **also use for "exists but you may not see it"** |
+| `404` | Not found. **Also use for "exists but you may not see it"** |
 | `409` | Conflict: duplicate, or version/state conflict |
 | `410` | Gone permanently |
 | `422` | Well-formed but semantically invalid (business rule violation) |
-| `429` | Rate limited — must include `Retry-After` |
+| `429` | Rate limited; must include `Retry-After` |
 | `500` | Unhandled server fault. Never leak internals. |
-| `503` | Dependency down / shedding load — include `Retry-After` |
+| `503` | Dependency down / shedding load; include `Retry-After` |
 
 Never return `200` with `{"error": …}` in the body. It defeats client error handling,
 monitoring, alerting, and retry logic.
 
 ### 2.3 Collections
 
-- **Always paginate.** No unbounded list endpoint, ever — not even for "small" tables,
+- **Always paginate.** No unbounded list endpoint, ever, not even for "small" tables,
   which grow. Enforce a default (e.g. 20) and a hard maximum (e.g. 100) page size server-side.
 - **Prefer cursor (keyset) pagination** over offset for anything large or frequently
   written. Offset pagination gets slower the deeper you go and silently skips or duplicates
   rows when the underlying data changes between pages. See `database-and-migrations.md` §4.3.
 - **Filtering, sorting, and field selection go in query parameters**, and every sortable
-  or filterable field must be **allow-listed** — never interpolate a client-supplied column
+  or filterable field must be **allow-listed**. Never interpolate a client-supplied column
   name into a query.
 - **Return a consistent envelope** for collections so clients can write one parser:
 
@@ -95,7 +95,7 @@ monitoring, alerting, and retry logic.
   removing or renaming a field, changing a type, tightening validation, making an optional
   field required, changing a default.
 - **Clients must ignore unknown fields.** State this in your API documentation and follow it
-  in your own client code — it is what makes additive evolution possible.
+  in your own client code. It is what makes additive evolution possible.
 - **Deprecate on a schedule, not on a whim.** Announce, add `Deprecation`/`Sunset` headers,
   measure remaining usage per client, then remove. Never remove something still in use.
 
@@ -149,7 +149,7 @@ Return one machine-readable shape for every error in the service:
 ```
 
 - **`code` is a stable, documented string** clients can branch on. Never make clients parse
-  `message` — it is for humans and may be localized or reworded.
+  `message`. It is for humans and may be localized or reworded.
 - **`request_id` on every response**, success and failure. This is what turns a support
   ticket into a log query.
 
@@ -158,7 +158,7 @@ Return one machine-readable shape for every error in the service:
 - **Never leak internals**: no stack traces, SQL, file paths, dependency names, or internal
   hostnames in a response. Log them; return a code and a request id. See `security.md` §7.
 - **Fail fast and loudly on programmer error** (misconfiguration, invalid state, missing
-  required env var) — crash at startup rather than serving broken traffic.
+  required env var). Crash at startup rather than serving broken traffic.
 - **Handle expected failures explicitly** (validation, conflict, not-found, dependency
   timeout). These are control flow, not exceptions to swallow.
 - **Never catch-and-ignore.** An empty catch block is a silent data-loss bug. If a failure
@@ -191,7 +191,7 @@ has leaked.
 
 - **Never put business logic in a controller/handler.** Handlers translate; they don't decide.
 - **Never let ORM entities reach the transport layer.** Map to explicit response DTOs.
-  Otherwise a schema change silently becomes a breaking API change — and lazy-loaded
+  Otherwise a schema change silently becomes a breaking API change, and lazy-loaded
   relations become accidental N+1 queries during serialization.
 - **Organize by feature, not by technical layer.** `orders/{handler,service,repository}`
   beats `controllers/`, `services/`, `repositories/` once you pass a handful of features:
@@ -212,10 +212,10 @@ has leaked.
 Only split a service out when you have a specific reason: independent scaling, independent
 deployment cadence, team ownership, or a hard isolation boundary. "Microservices" as a
 default converts local function calls into network calls with partial failure, distributed
-transactions, and versioned contracts — a large, permanent cost.
+transactions, and versioned contracts: a large, permanent cost.
 
 When you do split:
-- **Each service owns its data.** No other service reads its database directly. Ever — a
+- **Each service owns its data.** No other service reads its database directly. Ever. A
   shared database makes independent deployment impossible.
 - **Communicate via well-defined contracts**, versioned like public APIs.
 - **Prefer async events for cross-service side effects**; keep synchronous chains shallow.
@@ -225,8 +225,8 @@ When you do split:
 
 ## 6. Data, transactions, and concurrency
 
-- **Keep transactions short and scoped to a single logical operation.** Never do I/O — HTTP
-  calls, emails, queue publishing — inside a transaction. It holds locks for the duration of
+- **Keep transactions short and scoped to a single logical operation.** Never do I/O (HTTP
+  calls, emails, queue publishing) inside a transaction. It holds locks for the duration of
   a remote timeout.
 - **Never rely on read-then-write without protection.** Check-then-act across a transaction
   boundary is a race. Use a unique constraint, an atomic update
@@ -246,7 +246,7 @@ When you do split:
   ```
 
 - **The dual-write problem is real**: writing to your database and publishing an event are
-  not atomic. If the event must not be lost, use the transactional outbox pattern — write the
+  not atomic. If the event must not be lost, use the transactional outbox pattern: write the
   event to a table in the same transaction, and relay it separately.
 
 ---
@@ -274,7 +274,7 @@ When you do split:
 
 ## 8. Background work
 
-- **Anything slow, retriable, or non-essential to the response belongs in a queue** — email,
+- **Anything slow, retriable, or non-essential to the response belongs in a queue**: email,
   webhooks, report generation, thumbnails, third-party sync. Never make a user wait for it,
   and never fire-and-forget it in an in-process thread that dies with the deploy.
 - **Enqueue ids, not payloads.** The job re-reads current state; a serialized snapshot goes
@@ -295,7 +295,7 @@ When you do split:
 
 - **Know what you're solving.** Caching hides a performance problem; sometimes that is the
   right call, but check for a missing index first (`database-and-migrations.md` §3).
-- **Cache invalidation is the hard part — choose a strategy explicitly**: short TTL
+- **Cache invalidation is the hard part, so choose a strategy explicitly**: short TTL
   (simple, tolerates staleness), explicit invalidation on write (fresh, easy to get wrong),
   or versioned keys (safe, wastes space). Write down which you chose and why.
 - **Never cache anything user-specific under a shared key.** This is a recurring, serious
@@ -303,7 +303,7 @@ When you do split:
   don't cache.
 - **Set `Cache-Control` deliberately on every response.** Authenticated responses need
   `private, no-store` unless you have specifically reasoned otherwise.
-- **Guard against stampedes** — when a hot key expires, use a lock or serve-stale-while-
+- **Guard against stampedes.** When a hot key expires, use a lock or serve-stale-while-
   revalidate so one miss doesn't become 10,000 simultaneous rebuilds.
 
 ---
@@ -335,14 +335,14 @@ When you do split:
   latency in a multi-service system. Propagate trace context everywhere, including into
   queue messages.
 - **Alert on symptoms users feel** (error rate, latency, queue age), not on causes (CPU).
-  Every alert must be actionable and link to a runbook — anything else is noise that erodes
+  Every alert must be actionable and link to a runbook; anything else is noise that erodes
   on-call trust.
 
 ### 10.3 Health checks
 
 Expose two distinct endpoints:
-- **Liveness** — "is the process wedged?" No dependency checks. Failing this restarts you.
-- **Readiness** — "can I serve traffic?" Checks critical dependencies. Failing this removes
+- **Liveness**: "is the process wedged?" No dependency checks. Failing this restarts you.
+- **Readiness**: "can I serve traffic?" Checks critical dependencies. Failing this removes
   you from the load balancer.
 
 Conflating them causes restart loops when a database blips.
@@ -369,13 +369,13 @@ Conflating them causes restart loops when a database blips.
 
 ## 12. Testing
 
-- **Test the domain layer heavily and in isolation** — fast, no I/O. If this is hard, revisit
+- **Test the domain layer heavily and in isolation**: fast, no I/O. If this is hard, revisit
   §5.1.
 - **Test the transport layer through the real routing stack** with the app assembled: status
   codes, headers, serialization, auth, validation errors.
 - **Use real datastores in integration tests** (containers), not mocks. Mocked repositories
   pass while the real SQL is wrong.
-- **Mock only what you don't own** — third-party HTTP, payment providers, mail. And verify
+- **Mock only what you don't own**: third-party HTTP, payment providers, mail. And verify
   those mocks against reality with contract tests or recorded fixtures you refresh.
 - **Every bug fix starts with a failing test that reproduces it.** Otherwise you don't know
   you fixed it, and nothing stops it returning.
@@ -402,7 +402,7 @@ Conflating them causes restart loops when a database blips.
 - Stack traces or SQL errors in API responses.
 - Config read from env vars scattered through business logic, with unsafe defaults.
 - Cron jobs running once per app instance.
-- `SELECT *` mapped to a response DTO — see `database-and-migrations.md`.
+- `SELECT *` mapped to a response DTO; see `database-and-migrations.md`.
 - Sequential integer ids exposed publicly.
 - Logging full request bodies containing credentials or PII.
 
