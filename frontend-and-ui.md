@@ -215,6 +215,9 @@ Forms are where most real UI complexity lives. They deserve deliberate design.
 - **Map server field errors back to their fields.** An API returning
   `{ errors: { email: "already taken" } }` should surface next to the email input, not in a
   generic banner. Design the error contract for this (see `backend-and-api.md` §4).
+- **Render every error for a field, not just the first.** A password failing three rules
+  should say so once, not send the user through three round trips. Component libraries
+  that show a single message per field usually need this behaviour turned off explicitly.
 - **Never clear a user's input on failure.** Retaining what they typed is the difference
   between an annoyance and a lost form.
 - **Disable submit while submitting, not while invalid.** A permanently disabled button
@@ -311,7 +314,27 @@ Optimize what users perceive, in the order they perceive it.
 - **Animate `transform` and `opacity` only.** Animating `width`, `top`, `margin`, or
   `box-shadow` forces layout/paint every frame.
 
-### 7.3 Core Web Vitals
+### 7.3 Layout shift and flicker
+
+Most cumulative layout shift comes from a short list of causes. Fix these before hunting
+for anything exotic:
+
+- **Images, video, and embeds without dimensions.** Set `width`/`height` or
+  `aspect-ratio` so the box is reserved before the asset loads.
+- **The scrollbar appearing when content grows.** A page that starts short and becomes
+  scrollable jumps sideways. `scrollbar-gutter: stable` reserves the space up front.
+- **Webfont swap changing text width.** Match the fallback's metrics with
+  `size-adjust`, `ascent-override`, and friends on an `@font-face` descriptor, so the
+  swap does not reflow the paragraph.
+- **Content injected above existing content**: banners, cookie notices, validation
+  summaries. Reserve the space, or insert it where it cannot push anything down.
+- **The theme flash.** If the theme is applied by JavaScript after hydration, every
+  dark-mode user sees a white flash on first paint. Apply the stored theme in a small
+  blocking inline script in `<head>`, before first paint, and default to
+  `prefers-color-scheme` when nothing is stored. This is one of the rare cases where a
+  render-blocking script is correct.
+
+### 7.4 Core Web Vitals
 
 Track LCP (< 2.5s), INP (< 200ms), and CLS (< 0.1) from **field data**, not just lab runs.
 Lab numbers on a fast laptop tell you almost nothing about your actual users.
@@ -329,6 +352,11 @@ Lab numbers on a fast laptop tell you almost nothing about your actual users.
   selectors on element names or generic classes (`.card`, `.active`) will collide.
 - **Mobile-first, and design at the breakpoints where content breaks**, not at device
   widths. Test at 320px, 768px, 1280px, and one very wide viewport.
+- **Size components against their container, not the viewport.** A card in a sidebar and
+  the same card in a full-width grid want different layouts, and the viewport cannot tell
+  them apart. Container queries (`container-type: inline-size` plus `@container`) make a
+  component responsive to the space it was actually given, which is what makes it
+  genuinely reusable. Reach for viewport media queries only for page-level layout.
 - **Support dark mode by defining semantic tokens** (`surface`, `text-primary`,
   `border-subtle`) rather than literal ones (`gray-100`). Then a theme is a token swap
   instead of a rewrite. Respect `prefers-color-scheme`, and persist an explicit override.
@@ -349,6 +377,11 @@ Lab numbers on a fast laptop tell you almost nothing about your actual users.
 - **Handle unknown routes with a real 404 page** that offers a way onward.
 - **Guard protected routes on the server as well as the client.** A client-side redirect
   is UX, not security. The data must be protected at the API. See `security.md` §3.
+- **Prefer the platform's view transitions to a routing library's animation layer.** The
+  View Transition API animates between two DOM states, including across full page loads,
+  without adopting a client-side router purely for the effect. Name the elements that
+  should be treated as the same thing across the two states, and keep the whole thing
+  inside a `prefers-reduced-motion` guard.
 
 ---
 
@@ -433,6 +466,7 @@ Recognize these on sight:
 - [ ] Native `<form>` + submit handler
 - [ ] Every input has a real `<label>`, correct `type`, and `autocomplete`
 - [ ] Server errors map to their fields; user input is never cleared on failure
+- [ ] All errors for a field shown, not only the first
 - [ ] Client validation mirrored server-side
 
 **Accessibility**
@@ -449,11 +483,14 @@ Recognize these on sight:
 - [ ] Long lists virtualized or paginated; stable keys
 - [ ] Animations limited to `transform`/`opacity`
 - [ ] No new heavy dependency without a bundle-cost justification
+- [ ] Layout shift addressed: media dimensions, scrollbar gutter, font metrics
+- [ ] Theme applied before first paint, with no flash of the wrong theme
 
 **Styling**
 - [ ] Design tokens used; no hard-coded colors, spacing, or z-index
 - [ ] Styles scoped, not global
 - [ ] Responsive down to 320px and at 200% zoom
+- [ ] Components sized by container query, not viewport, where reusable
 - [ ] No fixed heights around text; long/empty content tested
 
 **Testing & errors**
