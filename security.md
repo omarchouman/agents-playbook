@@ -135,6 +135,18 @@ the one people forget.
   Ignore client-supplied `user_id`, `role`, `is_admin`, `account_id`.
 - **Guard mass assignment.** Binding a whole request body to a model lets an attacker set
   `role`, `credit_balance`, or `email_verified`. Allow-list bindable fields explicitly.
+- **Persist the output of validation, never the raw request.** The distinction is exact:
+  the raw body is whatever the attacker sent, while the validated result contains only the
+  fields you declared rules for. Passing the raw body to a create or update is mass
+  assignment even when validation ran first, because validation checked the fields it knew
+  about and passed the rest through untouched. Make the validated object the only thing in
+  scope after the boundary, so reaching for the raw body requires deliberately going back
+  for it. See `backend-and-api.md` §3 on parsing rather than validating.
+
+  ```
+  create(request.body)         ← ✗ validated, but every extra key rides along
+  create(request.validated())  ← ✓ only declared fields exist
+  ```
 - **In multi-tenant systems, scope every query by tenant** at a layer that cannot be
   forgotten: a repository base class, a query scope, or database row-level security. A
   single unscoped query is a cross-tenant data breach.
@@ -161,6 +173,21 @@ bug: attacker data being interpreted as instructions.
 - **Canonicalize before validating** (Unicode normalization, path resolution, URL decoding)
   so that an encoded payload can't slip past a check on the raw form. Decode exactly once;
   double-decoding reintroduces the problem.
+- **Constrain the keys of an object or array, not only its values.** A rule set that
+  validates the fields it knows about will happily accept twenty it does not, which is how
+  an unexpected key reaches a mass-assignment sink (§3) or a downstream service that treats
+  it as meaningful. Reject any key outside the allowed set, and apply that at every level of
+  a nested structure rather than only the top.
+- **Know what your framework silently rewrites before validation runs.** Common defaults
+  include trimming whitespace from every string and converting empty strings to null. These
+  are usually helpful and occasionally wrong: a "required" rule behaves differently once
+  `""` has become `null`, a password with a deliberate trailing space is altered before it
+  is hashed, and a field meaning "explicitly blank" cannot be distinguished from absent.
+  Find out what the default middleware does, and exempt the fields where it is wrong.
+- **Treat validation cost itself as an attack surface.** Rules applied across a wildcard
+  over a large nested array can go quadratic, so an attacker who can post a
+  ten-thousand-element array may consume seconds of CPU per request without ever submitting
+  anything invalid. Bound the array size before the per-element rules run, not after.
 
 ### 4.2 SQL injection
 
@@ -187,6 +214,12 @@ bug: attacker data being interpreted as instructions.
 - **If you must render user-supplied HTML, sanitize with a maintained library**
   (DOMPurify, Bleach, sanitize-html) with a strict allow-list of tags and attributes. Never
   write your own sanitizer, and never use a regex.
+- **Your language's tag-stripping helper is not a sanitizer.** Functions in the
+  `strip_tags` family remove things that look like elements. They do not parse HTML, so they
+  do not understand malformed markup that browsers recover from, they leave event-handler
+  and `style` attributes on any tag you chose to keep, and they do not touch `javascript:`
+  URLs. They are a formatting convenience for producing plain text, not a security control.
+  If the output is rendered as HTML, it needs a real parsing sanitizer.
 - **Validate URL schemes before rendering a link or `src`.** `javascript:` and `data:` URLs
   in an `href` are script execution. Allow-list `https:`, `http:`, `mailto:`.
 - **Deploy a Content Security Policy.** A strict, nonce-based CSP is the strongest
@@ -381,6 +414,15 @@ service.
   more expensive to change after launch.
 - **Automate what you can**: SAST/linters with security rules, dependency scanning, secret
   scanning, and IaC scanning in CI.
+- **Encode your invariants as architecture tests.** A rule that only exists in a document
+  degrades; a rule enforced by a failing build does not. Most ecosystems have a way to
+  assert structural facts in the test suite, and the ones worth asserting are the boring
+  ones people get wrong: no environment reads outside the config layer, no debug or dump
+  helpers in committed code, domain code importing nothing from the framework, controllers
+  never touching the raw request body, every endpoint carrying an authorization annotation.
+- **Guard destructive tooling against production**, including your own maintenance scripts,
+  and remember that automation and coding agents execute commands without the hesitation a
+  human would have. See `database-and-migrations.md` §7.
 - **Write regression tests for security fixes**: the same test that reproduces the
   vulnerability keeps it fixed.
 - **Test authorization explicitly**: for each protected endpoint, assert that an anonymous
@@ -400,6 +442,8 @@ service.
 - Authorization by route only, with no object-level ownership check (IDOR).
 - Trusting `user_id`, `role`, `is_admin`, or `account_id` from client input.
 - Binding a whole request body to a model without an allow-list (mass assignment).
+- Persisting the raw request body instead of the validated result.
+- Using a `strip_tags`-style helper as XSS protection.
 - String-concatenated SQL, or shell commands built by interpolation.
 - Auth tokens in `localStorage`; cookies without `HttpOnly`/`Secure`/`SameSite`.
 - JWT verification that trusts the `alg` header, or skips `exp`/`aud`/`iss`.
@@ -436,14 +480,17 @@ service.
 - [ ] Deny by default; policy centralized and testable
 - [ ] Identity and role derived server-side only
 - [ ] Mass assignment prevented by an explicit field allow-list
+- [ ] Writes take the validated result, never the raw request body
 - [ ] Multi-tenant queries scoped at a layer that can't be bypassed
 - [ ] Tests assert denial for anonymous, other-user, and lower-privilege callers
 
 **Input**
 - [ ] Schema validation at the boundary; allow-lists, not blocklists
-- [ ] All lengths, ranges, sizes, and depths bounded
+- [ ] All lengths, ranges, sizes, and depths bounded, before per-element rules run
+- [ ] Unexpected keys rejected at every level of nested input
+- [ ] Framework input normalization (trimming, empty-to-null) understood and overridden where wrong
 - [ ] All SQL parameterized; dynamic identifiers allow-listed
-- [ ] Output escaped per context; no raw HTML injection; sanitizer used for rich text
+- [ ] Output escaped per context; no raw HTML injection; parsing sanitizer used for rich text
 - [ ] CSP deployed without `unsafe-inline`/`unsafe-eval`
 - [ ] No shell interpolation; path traversal prevented by resolve-and-verify
 - [ ] No untrusted deserialization; no user input reaching `eval` or a template compiler
@@ -471,3 +518,5 @@ service.
 - [ ] Dependencies pinned, lockfile committed, scanning in CI, patch SLA defined
 - [ ] CI/CD least-privilege, OIDC over static keys, third-party actions SHA-pinned
 - [ ] `SECURITY.md` present; incident response plan documented
+- [ ] Architecture tests enforce the structural invariants
+- [ ] Destructive tooling refuses to run against production
