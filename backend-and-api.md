@@ -33,8 +33,12 @@ process boundary.
   (`POST /orders/{id}/cancellations`) rather than inventing an RPC verb in a REST API.
 - **Plural, lowercase, hyphenated collection names**: `/payment-methods`, not
   `/PaymentMethod` or `/payment_methods`. Pick one convention and never mix.
-- **Nest at most one level.** `/users/{id}/orders` is fine; `/users/{id}/orders/{id}/items/{id}`
-  is not. Address the deep resource directly at `/order-items/{id}`.
+- **Nest at most one level, and nest shallowly.** Use the parent only where you genuinely
+  need it, which is listing and creating: `GET /users/{id}/orders` and
+  `POST /users/{id}/orders`. Once a resource has its own id it no longer needs its parent to
+  be addressed, so `GET /orders/{id}` rather than `GET /users/{id}/orders/{id}`. This keeps
+  URLs short, avoids the question of what to do when the two ids disagree, and stops paths
+  like `/users/{id}/orders/{id}/items/{id}` from ever forming.
 - **Never expose sequential database ids in public URLs.** They leak volume and enable
   enumeration. Use UUIDv7/ULID (sortable, index-friendly) or a public opaque id.
 
@@ -165,6 +169,10 @@ Return one machine-readable shape for every error in the service:
   is genuinely tolerable, log it at the appropriate level with the reason it's tolerable.
 - **Preserve the cause when re-throwing.** Wrap with context (`"charging customer %s: %w"`),
   never discard the original.
+- **Never return from a `finally` block** (or your language's equivalent cleanup clause). A
+  `return` there silently discards both the pending exception and the value the `try` block
+  was about to return, converting a loud failure into a wrong answer. Cleanup clauses clean
+  up; they do not decide the result.
 - **A partial write that fails must not leave inconsistent state.** Use a transaction, or an
   explicit compensating action. See §6.
 
@@ -205,6 +213,15 @@ has leaked.
   config into a typed object at boot and fail immediately on anything missing or malformed.
   Never read raw env vars deep in business logic, and never ship a default that is only safe
   in development (a default secret, `DEBUG=true`, permissive CORS).
+- **Read the environment in exactly one layer.** Frameworks that cache or compile
+  configuration at deploy time stop populating the process environment afterwards, so a
+  stray environment read buried in a service silently becomes null in production while
+  working perfectly in development. One config layer reads the environment; everything else
+  reads the config object.
+- **Precompute at deploy or boot what you would otherwise compute per request**: config
+  parsing, route tables, template compilation, dependency wiring, regex compilation. Make it
+  an explicit step in the deployment pipeline rather than a lazy cache that the first
+  unlucky request pays for.
 - **Never commit secrets.** See `security.md` §5.
 
 ### 5.3 Services
@@ -220,6 +237,41 @@ When you do split:
 - **Communicate via well-defined contracts**, versioned like public APIs.
 - **Prefer async events for cross-service side effects**; keep synchronous chains shallow.
   Every synchronous hop multiplies latency and failure probability.
+
+### 5.4 Code-level conventions
+
+Small rules, but they compound across a codebase and they are cheap to enforce
+automatically.
+
+- **Turn on the strictest type checking your language offers**, at the top of the file or
+  in the project config: strict mode, no implicit `any`, no implicit coercion, null checks.
+  Silent coercion between strings, numbers, and booleans is the source of an entire class of
+  bugs that the compiler will find for free.
+- **Use guard clauses; return early.** Handle the failure and the trivial cases at the top
+  and return, leaving the main path unindented at the bottom. Deeply nested conditionals
+  hide which branch is the real one, and the arrow of indentation is a reliable smell.
+- **Know your language's falsy traps.** Emptiness helpers that treat `0`, `"0"`, `false`,
+  and `"0.0"` as absent will silently discard legitimate values: a quantity of zero, a
+  disabled flag, a score of nothing. Test for the condition you actually mean, `null`,
+  empty string, or empty collection, rather than for general truthiness.
+- **Do not use `0` as a meaningful enum value** in a language with loose truthiness. The
+  first member of an integer-backed enum will eventually be compared against zero or a
+  default-initialized field and evaluate as absent. Start at 1, or use string-backed values,
+  which are also far more readable in a database column and a log line.
+- **Use the transforming operation only when you transform.** Mapping a collection purely
+  for the side effect of each callback, then discarding the result, misleads every future
+  reader about whether the return value matters. Iterate when you are iterating; map when
+  you are producing a new collection.
+- **Format automatically and never discuss it in review.** A committed formatter config plus
+  a CI check ends the entire category of style argument.
+- **Use a codemod tool for large mechanical refactors**, not manual edits across hundreds of
+  files. Automated rewrites are reviewable as a rule plus a diff, they are consistent, and
+  they can be re-run when a straggler appears. Hand-editing at that scale reliably misses
+  cases and mixes real changes into the noise.
+- **Customize your scaffolding templates** to emit the conventions you want by default:
+  strict-type declarations, the base class, the standard imports, a test file alongside.
+  Conventions that are generated are followed; conventions that live only in a document
+  are not.
 
 ---
 
@@ -245,9 +297,30 @@ When you do split:
   Idempotency-Key: 9f2a…      → charge once; retries return the same 201 body
   ```
 
+- **Never dispatch a job, publish an event, or call a webhook from inside a transaction.**
+  This is the most common race in transactional systems: the worker is fast, picks the job
+  up before the transaction commits, queries for a row that is not visible yet, and fails
+  with "record not found" on a record you just created. Worse, if the transaction later
+  rolls back, the job refers to something that never existed. Defer dispatch until after
+  commit, using your framework's after-commit hook or by collecting side effects and firing
+  them once the transaction returns.
+
+  ```
+  BEGIN
+    INSERT order …
+    dispatch(SendReceipt)   ← ✗ worker may run before COMMIT, or after ROLLBACK
+  COMMIT
+
+  BEGIN
+    INSERT order …
+    afterCommit(() => dispatch(SendReceipt))   ← ✓
+  COMMIT
+  ```
+
 - **The dual-write problem is real**: writing to your database and publishing an event are
   not atomic. If the event must not be lost, use the transactional outbox pattern: write the
-  event to a table in the same transaction, and relay it separately.
+  event to a table in the same transaction, and relay it separately. After-commit dispatch
+  narrows the race; the outbox closes it.
 
 ---
 
@@ -269,6 +342,14 @@ When you do split:
   integration can't consume every worker.
 - **Degrade gracefully.** If the recommendations service is down, serve the page without
   recommendations. Decide per dependency, in advance, whether it is required or optional.
+- **Configure one client per dependency, in one place, and inject it.** Base URL,
+  authentication, timeouts, retry policy, circuit breaker, logging, and tracing belong to a
+  named, preconfigured client that callers receive. Constructing an ad-hoc client at each
+  call site is how half your outbound calls end up with no timeout: the rule above is only
+  enforceable if there is a single place to enforce it.
+- **Hook logging and metrics into the client, not the call sites.** A response hook that
+  records status, duration, and correlation id for every outbound request gives you complete
+  coverage for free, and cannot be forgotten by the next caller.
 
 ---
 
@@ -278,8 +359,21 @@ When you do split:
   webhooks, report generation, thumbnails, third-party sync. Never make a user wait for it,
   and never fire-and-forget it in an in-process thread that dies with the deploy.
 - **Enqueue ids, not payloads.** The job re-reads current state; a serialized snapshot goes
-  stale between enqueue and execution.
+  stale between enqueue and execution. This applies doubly to object graphs: a serialized
+  entity with its relations attached will be rehydrated with whatever was true at enqueue
+  time, which for a job that ran after a retry delay may be minutes or hours out of date.
+- **A worker has no request context.** The current user, session, tenant, locale, timezone,
+  request id, and IP address exist only during the HTTP request that enqueued the job.
+  Reading them from an ambient global inside a job gives you null in production, or worse,
+  whatever happened to be left over from a previous job on that worker. Pass everything the
+  job needs explicitly in its payload, including the acting user's id and the tenant.
+  Ambient-context reads are the single most common reason a job works inline and breaks once
+  it is actually queued.
 - **Jobs must be idempotent.** At-least-once delivery is the norm; a job will run twice.
+- **If you deduplicate jobs, make the skip observable.** Unique-job constraints silently
+  drop work by design, which is correct until the deduplication key is wrong and real work
+  disappears. Emit an event or metric on every skip so a broken key shows up as a spike
+  rather than as missing side effects nobody notices for a month.
 - **Every queue needs a dead-letter queue and an alert on it.** A DLQ nobody watches is a
   silent failure store.
 - **Bound retries and use backoff.** Infinite retries on a poison message will saturate the
@@ -288,6 +382,18 @@ When you do split:
   shutdown signals and either finish quickly or leave the job re-runnable.
 - **For scheduled jobs, guard against overlap and multi-instance execution** with a lock or
   a leader election. Two app instances means two crons firing.
+- **Prefer a blocking pop to a polling loop.** A worker that queries the backend every
+  hundred milliseconds for an empty queue generates constant load whether or not there is
+  work, and that cost is multiplied by every worker you run. Use the broker's blocking or
+  long-poll primitive, and where you must poll, back off while the queue stays empty.
+- **Give autoscaled workers a grace period before exiting.** A worker that stops the instant
+  the queue empties will thrash between start and stop under bursty load, and process
+  startup usually costs more than the idle time it saved. Keep the worker alive for a short
+  window after the queue drains.
+- **Have a way to pause consumers without a deploy.** During a risky migration, a
+  dependency outage, or a bad release, being able to stop workers from picking up new jobs
+  while leaving in-flight work to finish is the difference between a pause and an incident.
+  Make sure jobs simply accumulate while paused rather than failing.
 
 ---
 
@@ -301,6 +407,12 @@ When you do split:
 - **Never cache anything user-specific under a shared key.** This is a recurring, serious
   data-leak bug: one user's response served to another. Include the identity in the key, or
   don't cache.
+- **Add a per-request memoization layer above the shared cache.** Resolving the same
+  permission set or config value twenty times in one request means twenty round trips to
+  Redis even on a cache hit. Memoize resolved values for the lifetime of the request, backed
+  by the shared cache for the lifetime of the TTL. Keep the memo strictly request-scoped:
+  a memo that outlives the request is a stale-data bug, and in a multi-tenant system a
+  cross-tenant leak.
 - **Set `Cache-Control` deliberately on every response.** Authenticated responses need
   `private, no-store` unless you have specifically reasoned otherwise.
 - **Guard against stampedes.** When a hot key expires, use a lock or serve-stale-while-
@@ -384,6 +496,20 @@ Conflating them causes restart loops when a database blips.
 - **Tests must be deterministic and independent.** No shared mutable fixtures, no ordering
   dependencies, no real clock, no real network. Inject time; never call `now()` directly in
   logic you need to test.
+- **Never `sleep()` in a test.** Sleeping to let a timestamp advance, a token expire, or a
+  debounce fire makes the suite slow and flaky at the same time: too short and it fails on a
+  loaded CI machine, too long and it wastes minutes on every run. Control the clock instead,
+  freezing it or travelling forward, so a token expiring in thirty days is tested in
+  microseconds. If you are sleeping to wait for asynchronous work, poll for the condition
+  with a timeout rather than guessing a duration.
+- **Fake the boundary selectively.** Being able to execute one job for real while faking
+  every other is what lets you test a workflow end to end without also running the six
+  unrelated side effects it triggers.
+- **Speed up the feedback loop, not just the suite.** Running only the tests that cover
+  changed files locally and on pull requests, while running the whole suite on the main
+  branch and before release, keeps iteration fast without trading away the safety net.
+  Coverage-based test selection is only as good as its mapping, so never let it gate a
+  release on its own.
 
 ---
 
@@ -395,7 +521,12 @@ Conflating them causes restart loops when a database blips.
 - Retrying non-idempotent operations.
 - Business logic in controllers; ORM entities serialized straight to the wire.
 - Catching an exception and continuing with no log and no handling.
+- `return` inside a `finally` block.
 - Transactions that wrap a network call.
+- Dispatching a job or publishing an event before the transaction commits.
+- Reading the current user, tenant, or locale from an ambient global inside a queued job.
+- Constructing an ad-hoc HTTP client at the call site instead of injecting a configured one.
+- `sleep()` in a test.
 - Read-check-write without a constraint or lock.
 - A shared database between services.
 - Cache keys missing the user/tenant identity.
@@ -428,19 +559,26 @@ Conflating them causes restart loops when a database blips.
 - [ ] Domain logic testable without HTTP or a database
 - [ ] No ORM entities crossing the transport boundary
 - [ ] Config parsed and validated at startup; no unsafe defaults
+- [ ] Environment read only in the config layer
 - [ ] Dependencies injected, not global
+- [ ] Strict type checking on; guard clauses over nested conditionals
 
 **Data & concurrency**
 - [ ] Transactions short, with no I/O inside
+- [ ] Jobs and events dispatched after commit, never inside the transaction
 - [ ] Invariants enforced by database constraints
 - [ ] Concurrent updates guarded (version/`FOR UPDATE`/atomic update)
 - [ ] Mutations idempotent, or protected by an idempotency key
 
 **Remote calls & jobs**
 - [ ] Explicit timeouts on every client; deadlines propagated
+- [ ] One configured, injected client per dependency
 - [ ] Retries only on idempotent ops, with backoff + jitter and a cap
 - [ ] Optional dependencies degrade gracefully
 - [ ] Background jobs idempotent, bounded-retry, with a monitored DLQ
+- [ ] Jobs carry their context explicitly; no ambient request state read in a worker
+- [ ] Deduplication skips emit a metric
+- [ ] Consumers can be paused without a deploy
 - [ ] Scheduled jobs guarded against multi-instance execution
 
 **Operability**
@@ -454,4 +592,4 @@ Conflating them causes restart loops when a database blips.
 - [ ] Integration tests against a real datastore
 - [ ] Failure paths covered: timeout, 5xx, malformed input, conflict, denial
 - [ ] Regression test accompanies every bug fix
-- [ ] No real clock or real network in tests
+- [ ] No real clock or real network in tests; no `sleep()`
