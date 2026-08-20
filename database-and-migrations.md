@@ -94,6 +94,13 @@ CREATE UNIQUE INDEX ON subscriptions (account_id) WHERE status = 'active';
 - **Denormalize only with measurements and a maintenance plan.** A cached `comment_count`
   must be updated by a trigger or a transaction that also writes the comment, never by
   hopeful application code in one of the three places that inserts comments.
+- **Keep short-lived state out of your core tables.** One-time codes, verification tokens,
+  password-reset tokens, rate-limit counters, and "we emailed them at" markers do not need
+  to be nullable columns on `users`. Each one widens a hot row, needs its own cleanup job to
+  stop accumulating, and turns expiry into application logic that someone will forget.
+  A key-value store with a native TTL expresses "valid for fifteen minutes" directly and
+  disposes of the data itself. Keep in the table only what you must query, join, or report
+  on. (Tokens still need hashing at rest wherever they live: see `security.md` §2.2.)
 - **Use `JSONB` for genuinely schemaless data**: third-party payloads, user-defined fields,
   event bodies. Do **not** use it to avoid writing a migration: you lose type checking,
   constraints, and query planning, and you will end up validating in five places.
@@ -182,6 +189,17 @@ sequential scan on a large table in a hot query is the finding you're looking fo
 - **Every query that can return many rows needs a `LIMIT`.**
 - **`UPDATE` and `DELETE` must have a `WHERE` clause.** Review these specifically: run the
   equivalent `SELECT` first and confirm the row count.
+- **When you expect exactly one row, assert exactly one.** Taking the first result of a
+  query that should be unique hides duplicates indefinitely: the bug is not that the query
+  returned nothing, it is that it returned two and you silently picked one. Fetch with a
+  limit of two and fail loudly on the second row, or add the unique constraint that makes
+  the situation impossible. Reserve "first match" for queries that are genuinely ordered
+  and genuinely allowed to match many rows.
+- **Include the keys your relations need when selecting specific columns.** Narrowing a
+  `SELECT` to the columns you display will silently break any subsequent relation loading
+  that depends on a key you dropped: the ORM has nothing to match on, so it returns empty
+  relations rather than an error. Whenever you restrict columns, keep the primary key and
+  every foreign key involved in the loads that follow.
 
 ### 4.2 Performance
 
@@ -192,11 +210,25 @@ sequential scan on a large table in a hot query is the finding you're looking fo
   count them in code is orders of magnitude slower and will eventually OOM.
 - **Batch writes.** One `INSERT` with 1,000 rows beats 1,000 `INSERT`s by a wide margin.
   Batch, but bound the batch size; a single 100k-row statement creates its own problems.
+- **Keep bulk copies inside the database.** Moving rows from one table to another by
+  selecting them into the application, looping, and inserting them back costs two network
+  round trips per row plus object hydration for data you never look at. `INSERT INTO …
+  SELECT` does it in one statement without the rows ever leaving the server. The same goes
+  for bulk updates computed from other rows: express them as one statement rather than a
+  read-modify-write loop, which is also a race (see §5).
 - **Prefer `EXISTS` to `COUNT(*) > 0`**, since it can stop at the first match.
 - **Beware `COUNT(*)` on large tables** for pagination totals; it scans. Use an approximate
   count, a cached count, or cursor pagination that doesn't need a total.
 - **Stream or chunk large result sets** with a server-side cursor. Never materialize a full
-  table export in memory.
+  table export in memory. Two mechanisms, with different trade-offs: a **server-side cursor**
+  holds one query open and streams rows individually, giving the lowest memory use but
+  occupying a connection and a snapshot for the whole traversal; **chunked fetching** issues
+  a fresh bounded query per batch, releasing the connection between batches at the cost of
+  seeing writes that land mid-traversal. Long-running maintenance work usually wants
+  chunking; a single large export usually wants a cursor.
+- **Never filter or transform in application memory what the database can do.** Loading rows
+  and then filtering them in code fetches, transfers, and hydrates every row you were about
+  to discard. Push the predicate into the query.
 
 ### 4.3 Pagination
 
@@ -216,6 +248,28 @@ LIMIT 20;
 ```
 Include a unique tiebreaker (`id`) in both the sort and the cursor, or rows with identical
 timestamps will be skipped. Index on `(created_at DESC, id DESC)`.
+
+**Iterating in batches while modifying the rows you are iterating over is a special case,
+and offset gets it silently wrong.** If the batch loop filters on a column the loop itself
+updates, every processed row leaves the result set, the remaining rows shift down by one
+page, and the next `OFFSET` skips exactly one page worth of records:
+
+```sql
+-- Loop: process users where processed = false, 100 at a time, marking them processed.
+
+-- ✗ Offset. After batch 1 marks 100 rows processed, they leave the result set;
+--   OFFSET 100 now starts one page past where the unprocessed rows begin.
+SELECT … WHERE processed = false ORDER BY id LIMIT 100 OFFSET 100;   -- skips 100 rows
+
+-- ✓ Keyset. Position is anchored to the last id seen, not to a count of rows.
+SELECT … WHERE processed = false AND id > $last_id ORDER BY id LIMIT 100;
+```
+
+Half the records are silently missed, the job reports success, and nobody notices until the
+data is audited. **Whenever a batch loop writes to a column that appears in its own `WHERE`
+clause, iterate by key.** Most frameworks expose both variants under similarly named
+helpers, and the offset one is usually the default, so this is worth checking explicitly
+during review. The same rule applies to backfills (§6.4).
 
 **Use keyset for anything user-facing, infinite-scrolling, large, or frequently written.**
 
@@ -345,6 +399,25 @@ Dropping a column or table deserves its own ritual:
 
 **Never combine a destructive change with anything else in one migration.**
 
+### 6.6 Squashing a long migration history
+
+After a few years, replaying several hundred migrations to build a fresh database is slow,
+and the early ones often no longer run at all against a current engine. Collapse them:
+
+1. Build a database by running every existing migration, and verify it matches production's
+   schema.
+2. Dump that schema to a single baseline file, checked into version control.
+3. Configure the tooling to load the baseline instead of replaying migrations when starting
+   from empty, then continue applying any migration newer than the baseline.
+4. Keep the squashed migration files, at least for a release or two. Deleting them breaks
+   any environment that is mid-history.
+
+Rules: **squash only migrations that have run everywhere**, including the slowest-moving
+environment; never squash across a release boundary that anything might still roll back to;
+and re-verify that a from-scratch build and a from-baseline build produce identical schemas
+before trusting it. Squashing is a developer-experience optimization, so it must not change
+what production's schema is.
+
 ---
 
 ## 7. Operations
@@ -363,6 +436,16 @@ Dropping a column or table deserves its own ritual:
   from a replica can miss it, so route read-after-write to the primary.
 - **Never point a test suite, script, or local environment at production.** Enforce it with
   separate credentials, and make the production DSN visibly distinct.
+- **Make destructive commands refuse to run in production.** Drop-and-recreate, wipe, reset,
+  truncate, and "reseed" commands exist for development convenience and are one careless
+  shell history entry away from deleting production. Do not rely on people being careful:
+  have the command itself check the environment and abort, requiring an explicit override
+  flag plus a typed confirmation to proceed. Apply the same guard to your own destructive
+  maintenance scripts, which are usually more dangerous than the framework's, and note that
+  automation and coding agents run commands without the pause a human would take.
+- **Guard the operations that are destructive without looking it up**: a migration rollback
+  that drops columns, a "sync" that deletes rows absent from the source, and any bulk delete
+  driven by a filter that could match everything if a parameter comes through empty.
 - **Seed and anonymize.** Development data comes from a generator or a scrubbed dump, never
   a raw production copy containing real personal data. See `security.md` §8.
 
@@ -400,6 +483,11 @@ Most of the above still applies; these are the differences that catch people out
 - `SELECT *` in application code.
 - String-concatenated SQL.
 - Offset pagination on a large, actively-written table.
+- Offset-based batch loops that update the column they filter on (silently skips rows).
+- Taking the first row of a query that should have matched exactly one.
+- Narrowing `SELECT` columns and dropping the keys that relation loading needs.
+- Copying rows between tables by looping through the application.
+- Transient tokens and counters stored as nullable columns on core tables.
 - `COUNT(*)` on a large table for every page of results.
 - An unbatched `UPDATE`/`DELETE` over millions of rows.
 - Editing a migration that has already run somewhere.
@@ -436,6 +524,9 @@ Most of the above still applies; these are the differences that catch people out
 - [ ] No `SELECT *`; result sets bounded by `LIMIT`
 - [ ] No N+1; batched or eager-loaded
 - [ ] Keyset pagination for large or user-facing lists, with a unique tiebreaker
+- [ ] Batch loops that mutate their own filter column iterate by key, not offset
+- [ ] Queries expecting one row fail loudly on two
+- [ ] Restricted column lists still include the keys relations need
 - [ ] Aggregation done in the database
 
 **Transactions**
@@ -453,6 +544,7 @@ Most of the above still applies; these are the differences that catch people out
 - [ ] Backfills batched, resumable, run out-of-band
 - [ ] Destructive changes isolated, preceded by a verified backup and a wait period
 - [ ] Rollback plan stated and tested
+- [ ] Squashing, if used, applied only to migrations that ran everywhere
 
 **Operations**
 - [ ] Backup restore verified within the last drill window
@@ -460,3 +552,4 @@ Most of the above still applies; these are the differences that catch people out
 - [ ] Connection pool sized against database limits
 - [ ] Slow queries, replication lag, and connection saturation monitored
 - [ ] No non-production environment pointed at production data
+- [ ] Destructive commands refuse to run in production without an explicit override
