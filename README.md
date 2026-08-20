@@ -16,9 +16,14 @@ it legitimately does not.
 | [`backend-and-api.md`](backend-and-api.md) | API contracts, layering, errors, concurrency, background work, observability, testing |
 | [`database-and-migrations.md`](database-and-migrations.md) | Schema design, indexing, query performance, transactions, zero-downtime migrations |
 | [`security.md`](security.md) | AuthN/AuthZ, input handling, secrets, transport, dependencies, logging, incident basics |
+| [`git-and-version-control.md`](git-and-version-control.md) | Commits, branching, history rewriting, merge strategy, pull requests, repo hygiene, branch protection |
+
+The first four are organized by layer of the application. The last is organized by process,
+and applies to every change regardless of what you are touching.
 
 They overlap deliberately at the seams. Validation appears in both backend and security,
-and migrations appear in both database and backend, because that is where bugs live.
+migrations appear in both database and backend, and secrets appear in both security and
+git, because that is where bugs live.
 
 ## How to use these
 
@@ -35,6 +40,10 @@ Before writing code, read the playbook relevant to the layer you are touching:
 - API/service work → @agents-playbook/backend-and-api.md
 - Schema/query/migration work → @agents-playbook/database-and-migrations.md
 - Anything touching auth, user input, secrets, or PII → @agents-playbook/security.md
+
+Before committing or opening a pull request, in every case:
+
+- @agents-playbook/git-and-version-control.md
 ```
 
 Or vendor them in directly:
