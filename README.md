@@ -83,4 +83,4 @@ than one that was never tested.
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).
