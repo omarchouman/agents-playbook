@@ -164,6 +164,16 @@ Run these regardless. They produce most of what the interview would otherwise ha
 find . -maxdepth 3 \( -name 'CLAUDE.md' -o -name 'AGENTS.md' -o -name '.cursorrules' \) \
   -not -path '*/node_modules/*'
 
+# Is any of them generated? An edit to a generated file vanishes on the next run.
+# Identical bytes under two names is the giveaway: no person wrote both.
+for d in . */; do
+  [ -f "$d/CLAUDE.md" ] && [ -f "$d/AGENTS.md" ] && cmp -s "$d/CLAUDE.md" "$d/AGENTS.md" \
+    && echo "GENERATED (identical twins): $d"
+done
+head -10 CLAUDE.md 2>/dev/null | grep -iE '^<[a-z-]+>|generated|do not edit|guidelines'
+# Does it regenerate on install? Then an edit lasts until the next dependency install.
+grep -riE 'boost|post-autoload|postinstall' package.json composer.json 2>/dev/null | head -3
+
 # Conventions as practised
 git log --format='%s' -200                                   # commit message reality
 git log --format='%s' -200 | grep -cE '^(feat|fix|chore|docs|refactor|test|perf)(\(.+\))?!?:'
@@ -182,6 +192,10 @@ git config core.hooksPath
 
 # Where things live
 git ls-files | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn | head -20
+
+# Test and source layout, so the playbook can say where new code goes
+find . -type d \( -name test -o -name tests -o -name spec -o -name __tests__ \) \
+  -not -path '*/node_modules/*' | head
 
 # Churn: the files changed most often are where rules pay off most
 git log --format=%H -500 --name-only | grep -v '^$' | grep -v '^[0-9a-f]\{40\}$' \

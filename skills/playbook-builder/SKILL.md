@@ -58,39 +58,14 @@ command when `package.json` states it reads as not having looked.
 
 ## 1. Detect
 
-Run these before asking anything. For ecosystem-specific detail (Node, Python, Go, Rust, Ruby,
-PHP, Java, .NET), read `references/detection.md`.
+Run detection before asking anything. **`references/detection.md` holds the commands**, grouped
+by ecosystem and opening with topology. Work through it there rather than improvising; this
+section covers only how to read what comes back.
 
-Start with topology, since it determines where the playbook can live and how many pull
-requests a task produces. The full command set is in `references/detection.md`.
-
-```bash
-# How many repositories are actually in play, and is the parent one of them?
-find . -maxdepth 3 -name .git -not -path '*/node_modules/*' | sed 's|/.git$||'
-git rev-parse --show-toplevel 2>/dev/null || echo "PARENT IS NOT A GIT REPO"
-ls pnpm-workspace.yaml turbo.json nx.json go.work .gitmodules 2>/dev/null
-
-# What already instructs agents here, which you are extending rather than replacing
-ls -a | grep -iE 'claude|agents|cursor|copilot|windsurf|\.rules'
-find . -maxdepth 3 -name 'CLAUDE.md' -o -maxdepth 3 -name 'AGENTS.md' | grep -v node_modules
-
-# Stack, scripts, and the real verification commands
-ls package.json pyproject.toml go.mod Cargo.toml Gemfile composer.json pom.xml 2>/dev/null
-
-# Enforcement already in place: anything here must NOT become a written rule
-ls -a | grep -iE 'eslint|prettier|biome|ruff|rubocop|pint|editorconfig|pre-commit|lefthook|husky'
-ls .github/workflows .gitlab-ci.yml Jenkinsfile 2>/dev/null
-
-# Conventions as practised, not as claimed
-git log --format='%s' -200
-git log --format='%an' -200 | sort | uniq -c | sort -rn | head
-git branch -r --format='%(refname:short)' | head -30
-ls .github/pull_request_template.md .github/CODEOWNERS docs/ 2>/dev/null
-
-# Test and source layout, so the playbook can say where new code goes
-find . -type d \( -name test -o -name tests -o -name spec -o -name __tests__ \) \
-  -not -path '*/node_modules/*' | head
-```
+Start with topology, because it decides where the playbook can live and how many pull requests
+one task produces, and every later answer depends on it. Then four things in order: what
+already instructs agents here, the stack and its real verification commands, what tooling
+already enforces, and the conventions as practised rather than as claimed.
 
 Read the commit log for what is *practised*. If 80% of subjects carry a `fix:` prefix, that is
 the convention whatever anyone says. If the log is a wall of "update", that is a finding worth
@@ -128,10 +103,9 @@ and the practised one, which is often the most useful thing the exercise produce
 
 ## 2. Ask only what you cannot infer
 
-The instinct is to interview first and draft afterwards. Resist it. People are poor at
-answering abstract questions about how they want to work and very good at correcting a concrete
-artifact in front of them, so a draft built from inference and marked with its guesses gets you
-further in one round than a questionnaire gets in two.
+Resist interviewing first. People answer abstract questions about how they want to work
+poorly and correct a concrete artifact well, so a draft built from inference and marked with
+its guesses gets further in one round than a questionnaire gets in two.
 
 **Classify every architectural decision before asking anything.** Each one is in exactly one of
 three states, and only the third earns a question:
@@ -142,10 +116,9 @@ three states, and only the third earns a question:
 | **Inferable** | The evidence points one way | Assume it, mark the assumption, keep going |
 | **Must ask** | Evidence is genuinely silent **and** a wrong guess is expensive | Ask |
 
-Both conditions are required for the third. A decision the evidence is silent on but which
-costs nothing to get wrong is an assumption, not a question: the draft will surface it and the
-user will correct it in a sentence. A decision the evidence settles is not a question even if
-it feels important.
+Both conditions are required for the third. Something the evidence is silent on but cheap to
+get wrong is an assumption, not a question: the draft surfaces it and the user corrects it in a
+sentence. Something the evidence settles is not a question even if it feels important.
 
 In practice this collapses most of the architecture interview:
 
@@ -171,10 +144,10 @@ same interview as a payments service, and asking as though it does reads as proc
 sake. Let the size of the repository, the blast radius of its changes and the number of
 contributors set how much you ask.
 
-**Then draft, with every guess visible.** Produce the complete playbook, and alongside it a
-short list in the form "I assumed X, because Y, change it if wrong". A marked assumption costs
-the user one sentence to fix and nothing to accept, while an unmarked one becomes a rule nobody
-agreed to. Never hide an inference inside the prose as though it were established.
+**Then draft, with every guess visible.** Produce the complete playbook plus a short list in
+the form "I assumed X, because Y, change it if wrong". A marked assumption costs one sentence to
+fix and nothing to accept; an unmarked one becomes a rule nobody agreed to. Never hide an
+inference in the prose as though it were established.
 
 **Topology first, whatever else you skip**, because a task spanning two repositories produces
 two pull requests that must merge in order, which changes what every later gate means.
@@ -295,6 +268,31 @@ categories have different fates:
 | A workflow written as prose steps | **Transform into gates.** This is the main structural change, and the content survives it. |
 | Restatements of general practice | **Propose replacing** with a short rule plus a pointer, never silently. |
 | Rules referencing files, tools or services that no longer exist | **Flag, do not delete.** Stale to you may be dormant to them. |
+| A file its own tooling generates | **Never touch.** Reference it, and put overrides in a file you own. |
+
+**Check whether the file is generated before editing a word of it.** Some frameworks ship a
+command that writes and rewrites an instruction file: Laravel Boost produces a `CLAUDE.md` and
+`AGENTS.md`, and other ecosystems do the same. An edit there survives until the generator next
+runs and then disappears without a trace, which is worse than being refused, because nobody
+learns it happened. Check how often that is: generators are often wired into a package
+manager's post-install hook, so the file can regenerate on every dependency install rather than
+only when someone deliberately asks. Three signals, any one close to conclusive:
+
+```bash
+# Two names, identical bytes: no person wrote both.
+cmp -s CLAUDE.md AGENTS.md && echo "generated: identical twins"
+# Machine-authored openings: a wrapper tag, a banner, a do-not-edit notice.
+head -10 CLAUDE.md | grep -iE '^<[a-z-]+>|generated|do not edit|guidelines'
+# The generator itself, and whether it runs on install.
+grep -riE 'boost|agents?-?(md|rules)|post-autoload|postinstall' \
+  package.json composer.json pyproject.toml 2>/dev/null | head
+```
+
+Two files with different names and identical bytes were not written by a person. When you find
+one, leave it exactly as it is and work around it: put your rules in a file you own, usually a
+root `CLAUDE.md`, point at the generated one for what it covers, and where you need to override
+it say so explicitly, because the generated file cannot say it for you. Tell the user what you
+found, since they may not know the file regenerates either.
 
 Three rules govern the merge itself:
 
@@ -468,6 +466,8 @@ one nobody believes.
   tacit knowledge that is the one thing in the repository nobody can re-derive.
 - Dropping a rule during a rewrite without proposing it, so the loss is invisible in a diff
   that already changes every line.
+- Editing an instruction file that its own tooling regenerates, where the change survives until
+  someone runs the generator and then vanishes with no trace.
 - Restating a skill's own trigger conditions, which duplicates the mechanism that already
   loads it and rots the moment the skill is renamed.
 - Pointing at a general skill without saying what the team does differently, which leaves the
