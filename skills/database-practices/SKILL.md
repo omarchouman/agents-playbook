@@ -511,3 +511,12 @@ Most of the above still applies; these are the differences that catch people out
 - The application user having `DROP` privileges.
 - A shared database written by multiple services (see `backend-practices` §5.3).
 - `JSONB` used to avoid designing a schema.
+
+---
+
+## Review pass
+
+The condensed form of everything above lives in
+[`references/review-checklist.md`](references/review-checklist.md). Read it when reviewing a
+diff rather than writing one, or when you want a pull-request template. It is deliberately kept
+out of this file so a review pass costs one short read instead of re-loading every rule.

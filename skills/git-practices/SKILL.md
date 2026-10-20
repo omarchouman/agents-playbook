@@ -7,7 +7,8 @@ description: >-
   recovery with reflog and bisect and revert, tags and branch protection. Use this before making
   a commit, writing a commit message, opening or reviewing a pull request, rebasing, rewriting
   history, resolving a conflict, or adding anything generated or binary to the repo. Worth
-  reading on every commit, because commit atomicity is what makes bisect and revert work later.
+  reading on every commit, because commit atomicity is what makes bisect and revert work
+  later. Read references/review-checklist.md when reviewing a pull request.
 ---
 
 # Git and Version Control Practices
@@ -338,3 +339,12 @@ Rules that are enforced hold; rules that are merely documented decay.
 - Moving a published tag.
 - Relying on client-side hooks as an enforcement mechanism.
 - Working directly on `main`.
+
+---
+
+## Review pass
+
+The condensed form of everything above lives in
+[`references/review-checklist.md`](references/review-checklist.md). Read it when reviewing a
+diff rather than writing one, or when you want a pull-request template. It is deliberately kept
+out of this file so a review pass costs one short read instead of re-loading every rule.

@@ -454,3 +454,12 @@ Recognize these on sight:
 - `localStorage` used for auth tokens (readable by any XSS); see `security-practices` §2.3.
 - Fixed pixel heights around text.
 - Infinite lists with no virtualization or pagination.
+
+---
+
+## Review pass
+
+The condensed form of everything above lives in
+[`references/review-checklist.md`](references/review-checklist.md). Read it when reviewing a
+diff rather than writing one, or when you want a pull-request template. It is deliberately kept
+out of this file so a review pass costs one short read instead of re-loading every rule.

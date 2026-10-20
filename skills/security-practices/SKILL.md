@@ -473,3 +473,12 @@ service.
 - No rate limiting on login, reset, or expensive endpoints.
 - Production data copied into a development database.
 - Security controls implemented only on the client.
+
+---
+
+## Review pass
+
+The condensed form of everything above lives in
+[`references/review-checklist.md`](references/review-checklist.md). Read it when reviewing a
+diff rather than writing one, or when you want a pull-request template. It is deliberately kept
+out of this file so a review pass costs one short read instead of re-loading every rule.

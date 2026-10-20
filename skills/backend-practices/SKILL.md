@@ -548,3 +548,12 @@ Conflating them causes restart loops when a database blips.
 - `SELECT *` mapped to a response DTO; see the `database-practices` skill.
 - Sequential integer ids exposed publicly.
 - Logging full request bodies containing credentials or PII.
+
+---
+
+## Review pass
+
+The condensed form of everything above lives in
+[`references/review-checklist.md`](references/review-checklist.md). Read it when reviewing a
+diff rather than writing one, or when you want a pull-request template. It is deliberately kept
+out of this file so a review pass costs one short read instead of re-loading every rule.
