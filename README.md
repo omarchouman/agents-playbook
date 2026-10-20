@@ -26,7 +26,7 @@ Nothing else to configure. Each skill declares when it applies and loads itself.
 | `database-practices` | Migrations, schema, queries, indexes | Types and constraints, indexing, query performance, keyset pagination, lost-update prevention, zero-downtime migrations, backfills, destructive changes |
 | `security-practices` | Auth, permissions, user input, uploads, secrets, PII | AuthN and sessions, object-level authorization, the injection classes, SSRF, uploads, secrets, headers, audit logging, data protection, supply chain |
 | `git-practices` | Commits, messages, branches, pull requests, rebases | Atomic commits, message form, branching models, history rewriting, merge strategy, force-push safety, PR size and review, repo hygiene, recovery, protection |
-| `playbook-builder` | "Codify how we work", "write our standards" | Builds a playbook for **your** repo: detects conventions, interviews for what it cannot detect, writes rules agents follow |
+| `playbook-builder` | "Codify how we work", "write our standards" | Builds a `CLAUDE.md` for **your** repo as an ordered gate pipeline, from tracked issue to closed loop, plus the standards behind it |
 
 The first five are general practice. `playbook-builder` is the one that makes this yours.
 
@@ -36,10 +36,18 @@ The first five are general practice. `playbook-builder` is the one that makes th
 including the safe-versus-dangerous operation list that prevents table-locking outages. Touching
 auth pulls in object-level authorization. You don't have to remember to ask.
 
-**A way to capture your own conventions.** `playbook-builder` interviews you and writes a
-playbook for your codebase. It reads the repo first, so it asks about what no amount of reading
-reveals: what "done" means here, when an agent should stop and ask instead of deciding, which
-parts of the codebase are dangerous, and what looks wrong but is deliberate.
+**A way to capture your own conventions.** `playbook-builder` writes your repo's `CLAUDE.md` as
+a **gate pipeline**: numbered gates that close in order, from opening a tracked issue through
+triage, design, implementation, review, and an explicit authority boundary for commits and pull
+requests, to closing the loop on the tracker. A gate names a real tool, has an exit condition
+you can check, and says what happens when it cannot close, so "you skipped Gate 5" becomes a
+precise complaint rather than a vague one.
+
+It reads the repo first, then asks the architectural questions that decide which gates exist:
+which issue tracker and whether an MCP connects it, branches or a worktree per task, native
+execution or subagent delegation, whether plan approval gates implementation, and who may commit
+and push. Then it asks what no amount of reading reveals: what "done" means here, which parts of
+the codebase are dangerous, and what looks wrong but is deliberate.
 
 Try it with:
 
