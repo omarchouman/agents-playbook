@@ -40,7 +40,9 @@ itself, and length is the enemy of being followed.
 Say so rather than building something nobody needs:
 
 - **Fewer than about ten rules.** Put them directly in `CLAUDE.md`. A playbook is overhead until
-  there is enough to organize.
+  there is enough to organize. This is not in tension with the placement guidance in §5: that
+  section describes how to split a playbook once it is large enough to need splitting, and a
+  small repo arriving at §5 with a dozen rules should put all of them in `CLAUDE.md` and stop.
 - **The user wants one specific thing fixed now.** Fix it. A playbook is for recurring decisions.
 - **Generic best practices with nothing team-specific.** Point them at the `frontend-practices`,
   `backend-practices`, `database-practices`, `security-practices` and `git-practices` skills,
@@ -84,6 +86,30 @@ Read the commit log for what is *practised*. If 80% of subjects carry a `fix:` p
 the convention whatever anyone says. If the log is a wall of "update", that is a finding worth
 raising, not a convention to encode.
 
+**When detection comes up empty.** Documentation repos, config and infrastructure repos, design
+systems, content sites and fresh projects have no manifest, no test runner and no linter, so most
+of the commands above return nothing. That is itself the most useful finding: a repo with no
+mechanical enforcement has every convention living in someone's head, which is the strongest
+possible case for writing them down and for §3's advice to convert them into checks. Fall back to
+three sources that always exist:
+
+- **The commit log**, which shows subject style, body discipline, granularity and whether work
+  goes through branches. In a repo with no tooling this is the only written record of how the
+  team operates.
+- **Churn**, which shows what the work actually consists of. A repo where every commit touches
+  the same four documents has a different shape from one spread across fifty files.
+- **The artifacts themselves.** Read two or three of the files the repo exists to produce and
+  infer the house style directly: how rules are phrased, how sections are structured, what the
+  author clearly refuses to do. A convention visible in every file is a real convention.
+
+**Check whether the repo follows the standards it already ships or cites.** If it contains or
+links a style guide, a contributing document, a set of practice rules or a published policy,
+verify a sample of those claims against reality: does `main` have the protection its own guide
+demands, does CI run what its own README promises, do the files follow the conventions they
+document? Divergence here is high-value, because a repo that visibly ignores its own rules
+teaches every reader, human or agent, that the rules are decorative. Either the practice or the
+rule needs to change, and the user is the one who decides which.
+
 Then **report what you found and ask for correction**, in a few lines. "Your last 200 commits are
 85% Conventional Commits, tests live beside sources as `*.test.ts`, Biome and a pre-commit hook
 already enforce formatting, and CI runs typecheck plus unit plus e2e. Correct anything wrong
@@ -101,16 +127,21 @@ new tests written, types checked, docs or changelog updated, a migration tried a
 screenshot, a manual check somewhere? This is the highest-value answer in the interview, because
 nearly every disagreement about agent work is a disagreement about what finished meant.
 
-**Stop conditions.** ★ When should an agent stop and ask rather than decide for itself? Adding a
-dependency, changing a schema, altering a public API or response shape, touching auth or
-permissions, anything involving money or personal data, a change spanning more than some number
-of files. And the harder version: what may it never do without a human, such as pushing to a
-protected branch, running a migration against live data, editing production config, or rotating
-a credential?
+**Stop conditions and autonomy.** ★ Ask these together, in one exchange, because they are two
+ends of the same question and answering one half-answers the other. How far does an agent's
+authority run: edit the working tree, commit, push a branch, open a pull request, merge? And
+where does it stop and ask instead of deciding: adding a dependency, changing a schema, altering
+a public API or response shape, touching auth or permissions, anything involving money or
+personal data, a change spanning more than some number of files? Then the hard limits, which are
+worth stating separately in the output: what it may never do without a human, such as pushing to
+a protected branch, running a migration against live data, editing production config, or
+rotating a credential. Being explicit prevents both timid agents that stop short of useful work
+and bold ones that push to `main`.
 
-**Autonomy.** ★ How far does its authority run: edit the working tree, commit, push a branch,
-open a pull request, merge? Being explicit here prevents both timid agents that stop short of
-useful work and bold ones that push to `main`.
+Watch for answers that contradict a rule the playbook is about to state. A team that wants an
+agent pushing directly to `main` has chosen a workflow that branch-protection advice forbids;
+that is a legitimate choice for a small repo, but it has to be recorded as a deliberate
+deviation with its reason (§4), or the playbook will contradict itself and lose credibility.
 
 **The shape of a task.** Where does work arrive from, and in what format? Branch from what, named
 how? Is there a required sequence from issue to merge, and who or what reviews? Agents are good
@@ -134,6 +165,15 @@ testing or stall.
 module the team considers exemplary and worth imitating? A pointer to one good example teaches
 more than a paragraph of description.
 
+**Corrections you have already had to make.** ★ Ask directly: what have you had to tell an agent,
+or a new colleague, more than once? What did the last review of agent-written work change? This
+is the single most productive question in the interview and the one most often skipped, because
+those corrections are the conventions that matter most and the ones least likely to be written
+anywhere. They exist only in chat logs and reviewers' memory, and they vanish when the session
+ends, which is exactly the problem a playbook solves. If you are running this skill inside a
+session where the user has already corrected you, mine that: those corrections are evidence, and
+they belong in the playbook whether or not the user thinks to mention them.
+
 ## 3. What earns a place
 
 Admit a rule only if all three hold. This filter is what keeps the result worth reading:
@@ -145,6 +185,26 @@ Admit a rule only if all three hold. This filter is what keeps the result worth 
    constraint can enforce it, that is strictly better than a written rule, because it cannot be
    forgotten or ignored. When you find such a rule, **say so and offer to add the check instead**.
    A playbook should shrink as enforcement grows.
+
+   `scripts/validate-playbook.py` in this skill is a working scaffold for exactly that. Copy it
+   into the repository, usually as `scripts/validate-playbook.py`, and replace its example
+   `CHECKS` with the project's own. It composes checks from factories for forbidden text,
+   required text, file existence, link resolution, commit subjects and bodies, and a shell
+   escape hatch that delegates to tooling the project already owns rather than reimplementing
+   it. Prefer that escape hatch where a real linter exists: wrapping `pnpm lint` keeps the
+   check honest, while reimplementing its rules guarantees drift.
+
+   **Then prove the checks can fail.** Run `python3 scripts/validate-playbook.py --self-test`,
+   which writes a synthetic violation for each check and confirms it fires. A check that cannot
+   fail is worse than no check, because it reports success forever and nobody looks at it again.
+   Do this every time you add or edit one; it catches inverted conditions and patterns that
+   never match, and it takes a second. Anything reported as unverified needs a sample violation
+   declared before you trust it.
+
+   Expect the first real run to fail on things that are fine. That is the scaffold's defaults
+   meeting the project's actual choices, and each failure is a question worth asking: is this
+   a rule the project wants, or a default to delete? Resolve every one before wiring it to CI,
+   because a validator that is known to cry wolf gets disabled within a week.
 
 Also exclude: anything already obvious from the code, anything covered by the five general
 practice skills unless this team deliberately differs from them, and anything nobody actually

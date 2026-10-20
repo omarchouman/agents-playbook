@@ -147,7 +147,25 @@ for p in markdown_files():
             fail("%s links %s which does not exist" % (p, target))
 done()
 
-# 7. No agent attribution anywhere in history. Rewriting history to remove one is
+# 7. A section reference inside a file must point at a heading in that same file.
+#    Renumbering sections is routine and silently strands these.
+fail, done = check("internal section references resolve within their own file")
+for p_ in markdown_files():
+    text = io.open(p_, encoding="utf-8").read()
+    own = {m.group(1) for m in re.finditer(r"^#{2,3} (\d+(?:\.\d+)?)\.? ", text, re.M)}
+    if not own:
+        continue
+    for m in re.finditer(r"(?<!`)\u00a7(\d+(?:\.\d+)?)", text):
+        # Skip refs qualified by a skill name; check 2 already covers those.
+        start = max(0, m.start() - 40)
+        if re.search(r"`[a-z-]+-practices` $", text[start:m.start()]):
+            continue
+        if m.group(1) not in own:
+            fail("%s references \u00a7%s with no such section in that file"
+                 % (p_, m.group(1)))
+done()
+
+# 8. No agent attribution anywhere in history. Rewriting history to remove one is
 #    expensive, so catching it before it spreads is the whole point.
 fail, done = check("no agent attribution in commit messages")
 try:
