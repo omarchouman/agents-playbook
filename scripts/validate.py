@@ -45,6 +45,18 @@ def check(name):
     return fail, done
 
 
+def _strip_code(text):
+    """Remove fenced code blocks and inline code.
+
+    Markdown inside a fence is a sample, not a link: a template showing
+    `[label](path)` is documenting syntax, not pointing anywhere. Scanning it
+    produces failures that can only be silenced by making the documentation worse.
+    """
+    text = re.sub(r"```.*?```", "", text, flags=re.S)
+    text = re.sub(r"~~~.*?~~~", "", text, flags=re.S)
+    return re.sub(r"`[^`\n]*`", "", text)
+
+
 def markdown_files():
     return sorted(
         p for p in glob.glob("**/*.md", recursive=True)
@@ -138,7 +150,7 @@ done()
 fail, done = check("relative Markdown links resolve")
 for p in markdown_files():
     base = os.path.dirname(p)
-    text = io.open(p, encoding="utf-8").read()
+    text = _strip_code(io.open(p, encoding="utf-8").read())
     for m in re.finditer(r"\[[^\]]*\]\(([^)#:]+)\)", text):
         target = m.group(1).strip()
         if target.startswith(("http", "mailto", "#", "/")):

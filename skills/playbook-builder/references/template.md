@@ -1,125 +1,227 @@
-# Playbook template and worked example
+# Playbook template
 
 Read this at step 4 of the `playbook-builder` skill, when you are ready to write.
 
+The output is a `CLAUDE.md` built around a **gate pipeline**: an ordered sequence where each
+gate closes before the next opens. This shape matters more than any individual rule in it,
+because it converts a list of preferences into a procedure. "Write tests" is advice an agent
+weighs; "Gate 4 does not open until Gate 3 is approved" is a thing an agent does.
+
+Delete every section you have nothing real to put in. An empty heading invites filler, and
+filler is what makes a playbook unread.
+
+## What makes a gate a gate
+
+Four properties. A step missing any of them is a suggestion wearing a gate's name:
+
+1. **An entry condition.** What must already be true. Usually "the previous gate closed".
+2. **A definite action**, naming the real tool, skill or command rather than describing it.
+3. **An exit condition that can be checked.** "Plan approved", "review findings all resolved",
+   "issue moved and PR linked". Not "done properly".
+4. **A stated behaviour when it cannot close.** The tracker is unreachable, the user has not
+   given a go-ahead, the review found something unfixable. The common failure is a gate that
+   silently gets skipped when its precondition fails, so say what happens instead.
+
+Number gates from 0 so a tracking gate can sit ahead of triage without renumbering everything.
+
 ## Skeleton
 
-Delete every section you have nothing real to put in. An empty heading invites someone to
-fill it with filler, and filler is what makes playbooks unreadable.
-
 ```markdown
-# <Project> engineering playbook
+# CLAUDE - <Project>
 
-How work gets done in this repository. Rules here exist because getting them wrong has cost
-us something. General language and framework practice lives in the agents-playbook skills;
-this document covers only what is specific to us.
+## Project overview
 
-## Stop and ask
+<Two or three sentences: what this is, who uses it, what it sits on top of. Enough that an
+agent reading only this file knows what domain it is in.>
 
-Hard limits. Do not decide these alone.
+<If there are distinct user roles or tenancy concepts, list them here. They shape every
+authorization decision that follows.>
 
-- **<Action>.** <Why it needs a human.>
+---
 
-## Definition of done
+## Task playbook
 
-A task is finished when all of these are true:
+Every substantive task runs these gates **in order**. A gate closes before the next opens.
+This is the prescribed flow, not a menu.
 
-- [ ] <Condition, with the command that proves it.>
+<One sentence naming the hardest constraints up front, so they are not buried: no code before
+an approved plan, no commit until explicitly asked, or whatever the real ones are.>
 
-## Verifying your work
+### Gate 0 - <Tracking>
 
-| What | Command | Takes |
-|---|---|---|
-| Typecheck | `<cmd>` | <time> |
-| Unit tests | `<cmd>` | <time> |
-| Lint | `<cmd>` | <time> |
+<Every task gets an issue, or the stated exception. Search before creating, so the same work
+does not get two issues. How to route it. Who to assign. What status it moves to. Which ID
+travels into the branch name.>
 
-<Anything that cannot be verified locally, and what to do instead.>
+<What to do when the tracker is unreachable: say so and ask. Never skip silently.>
 
-## How a task travels
+### Gate 1 - Triage
 
-1. <Where work arrives from.>
-2. <Branch from what, named how.>
-3. <Write the test first, or not, and where tests live.>
-4. <Commit convention.>
-5. <Open a PR against what, with what in the description, reviewed by whom.>
-6. <What happens at merge.>
+Run the **full flow** if any of these is true:
 
-## Scope
+- <blast-radius criterion>
+- <blast-radius criterion>
 
-- **<Fix it / note it / open an issue / leave it>** when you notice an unrelated problem.
-- <Whether drive-by refactoring is welcome.>
+**Short flow** (skip Gates <n>-<m>, start at Gate <k>) for changes with no blast radius:
+<typo, comment, copy string, local config, dependency bump>. These still run Gates <k>-<last>.
 
-## Standards
+When it is a judgment call, run the full flow.
 
-### <Area, e.g. API handlers>
+### Gate 2 - <Design>
 
-- **<Imperative claim.>** <Trigger, then reason or cost.>
+<Which skill or approach. Crucially: where it stops, and what artifacts it must not produce.>
 
-### <Area, e.g. Data access>
+### Gate 3 - <Plan>
 
-- **<Imperative claim.>** <Trigger, then reason or cost.>
+<Plan produced and approved before any implementation code. Name the approval mechanism.>
 
-## Deliberate oddities
+### Gate 4 - Implement
 
-Things that look wrong and are not. Do not "fix" these.
+<Isolation: branch from what, named how, worktree or not.>
+<Module order if there is one.>
 
-- **<The oddity.>** <Why it is that way.>
+Read the relevant guide **before** writing code, and verify against it after:
 
-## Exemplars
+| Area | Guide |
+|---|---|
+| <module> | [`<path>`](<path>) |
 
-- `<path>` is the pattern to copy for <kind of work>.
+### Gate 5 - Review before pushing
+
+<What runs it, against the working diff. Every finding fixed or explicitly dismissed.>
+
+### Gate 6 - Commit and PR <- authority boundary
+
+<Whether this gate opens on its own. If not: what the agent does instead, which words
+constitute permission, whether permission is per-step, whether it carries to the next task,
+and what does not count as permission.>
+
+<Which skills commit as part of their own flow and are overridden here.>
+
+### Gate 7 - <Post-PR review>
+
+<Only if Gate 6 happened. Note the scoping trap: the working diff is empty once committed, so
+scope to the branch explicitly.>
+
+### Gate 8 - Close the loop
+
+<What state the task ends in. Where work parks if it stalls. Who is allowed to mark it Done.
+What happens to acceptance criteria that did not ship.>
+
+---
+
+## Conventions by area
+
+<Table mapping each module to its convention document. If none exist, say which generic
+practice skills apply instead.>
+
+---
+
+## Tech stack
+
+<Per module: the stack in one line, pointing at its guide.>
+
+---
+
+## Quick start
+
+Startup order: **<a> -> <b> -> <c>**.
+
+| Module | Start | Test / lint | Port |
+|---|---|---|---|
+| <module> | `<cmd>` | `<cmd>` | <port> |
+
+<Gotchas that make the difference between the above working and not: what must run first,
+what has no test suite and what gates it instead, where the API docs are.>
+
+---
+
+## Local environment
+
+<Prerequisites with versions. Which config files are committed. Which environment variables
+are needed even locally, and what breaks without them.>
+
+---
+
+## Git conventions
+
+<Commit format with the real types and scopes. Branch naming including how the issue ID is
+carried. Which branch PRs into which. What CI runs and on what. Attribution rules. A pointer
+back to the authority gate.>
+
+---
+
+## Architecture
+
+<The mechanisms an agent could violate without noticing: tenancy, auth, request pipelines,
+event ordering. Describe how they work, not just that they exist. Tables and small diagrams
+beat paragraphs here.>
+
+<The test for inclusion: could a change pass review and tests and still be wrong because the
+author did not know this existed?>
+
+---
+
+## Gotchas
+
+<Per area. The tacit knowledge: things that look wrong and are deliberate, mistakes new
+contributors reliably make, and rules whose violation is silent rather than loud.>
+
+**<Area>**:
+- <Specific, checkable, with the consequence stated.>
 ```
 
-## Worked example
+## Worked fragments
 
-Rules at the quality bar to aim for. Each names a trigger, gives an instruction, and states a
-consequence that lets a reader judge when an exception is legitimate.
+Quality bar to aim for. Each names a trigger, gives an instruction, and states a consequence
+that lets a reader judge when an exception is legitimate.
+
+### A gate with a real authority boundary
 
 ```markdown
-## Stop and ask
+### Gate 6 - Commit and PR - requires explicit go-ahead
 
-- **Adding a runtime dependency.** Our bundle budget is 180KB gzipped and we are at 171KB.
-  Any addition needs a conversation about what comes out.
-- **Changing a response shape on `/v2/*`.** Three mobile releases are live at any time and
-  cannot be force-upgraded, so a removed field breaks clients for about six weeks.
-- **Any migration touching `events`.** It holds 2.1 billion rows. A migration that is instant
-  in development locks the table for hours here. Bring the plan first.
+**This gate does not open on its own.** When the work is implemented and Gate 5 is clean,
+stop: report what is ready, leave the changes uncommitted, and wait.
 
-## Definition of done
+Never run `git commit`, `git push`, or `gh pr create` unless asked for that step in this
+session, in the user's own words.
 
-- [ ] `pnpm verify` passes (typecheck, lint, unit)
-- [ ] New behaviour has a test that fails without the change
-- [ ] Anything user-visible has a changelog entry under `## Unreleased`
-- [ ] Migrations tested against a restored production snapshot, not a seeded dev database
-
-## Standards
-
-### API handlers
-
-- **Handlers parse, delegate, and format. Nothing else.** Business logic in a handler cannot be
-  tested without HTTP and gets duplicated the moment a second caller appears. Logic belongs in
-  `src/domain/`, which has no framework imports.
-- **Every handler returns a `Result`, never throws for expected failures.** Our error middleware
-  maps `Result` to the error envelope; a thrown exception bypasses it and returns a bare 500
-  with no request id, which makes the support ticket unanswerable.
-
-### Data access
-
-- **Read through a repository in `src/data/`, never the ORM directly from domain code.** We
-  swapped the ORM once already and the repositories were the only reason it took a week.
-- **Any query on `events` needs `tenant_id` in the WHERE clause.** It is the partition key.
-  Without it the query scans every partition, which has taken the database down twice.
-
-## Deliberate oddities
-
-- **`src/legacy/pricing.ts` duplicates logic in `src/domain/pricing.ts`.** The legacy copy is
-  frozen because invoices issued before 2025-04 must reproduce byte-identically for audit.
-  Change the new one only.
-- **`useLayoutEffect` in `ScrollRestore.tsx` is intentional.** `useEffect` paints at the old
-  scroll position first and the jump is visible.
+- **Permission is per-step.** "Commit it" is not permission to push.
+- **Permission does not carry forward.** The next task starts back at asking.
+- A clean review, a green CI run, finishing the work, and being told to "work autonomously"
+  are **not** permission.
+- **This overrides any skill that commits in its own flow.** When a skill says commit, it
+  means ask.
 ```
 
-Note what the example does not contain: no quote style, no import ordering, no naming
-conventions. The formatter and linter own those. Every line present is something no tool can
-check and something that has already cost the team.
+Note what makes it work: it names the exact commands, enumerates the four things agents
+misread as consent, and resolves the conflict with other skills rather than leaving the agent
+to arbitrate.
+
+### A gotcha worth writing down
+
+```markdown
+- **Admin routes bypass tenant scoping entirely.** Tenant routes are auto-filtered by the
+  request pipeline, so a missing `tenant_id` on a tenant query is harmless. On an admin
+  route the filter does not run, and the same omission silently returns every tenant's rows.
+  Repositories called from admin paths must take an explicit tenant id.
+```
+
+Silent and wrong beats loud and wrong for playbook inclusion: a crash teaches itself, and
+this does not.
+
+### Scoping a second review pass
+
+```markdown
+Gate 5 already consumed the working diff, so the tree is clean by now. Scope this pass to the
+branch explicitly with `gh pr diff` or `git diff origin/<base>...HEAD`, or the review reads
+nothing and reports success.
+```
+
+## What to leave out
+
+The example above contains no quote style, no import ordering, no naming conventions. A
+formatter and linter own those, and §3 of the skill says a rule a tool can check should become
+the tool. Everything present is something no tool can check and something that has already
+cost the team.

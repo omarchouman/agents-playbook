@@ -1,9 +1,9 @@
 ---
 name: playbook-builder
 description: >-
-  Build a custom engineering playbook that captures how a specific team wants work done in their
-  codebase, and how a task gets from an issue to finished, then write it out as a skill, a
-  CLAUDE.md section or a reference doc. Use this when the user wants to codify conventions,
+  Build a custom engineering playbook that captures how a specific team wants work done in
+  their codebase, as an ordered gate pipeline running from tracked issue to closed loop, and
+  write it out as a CLAUDE.md, a skill or a reference doc. Use this when the user wants to codify conventions,
   standards, a definition of done, review expectations, guardrails or a task workflow for agents
   to follow, including phrasings like "write up our engineering standards", "codify how we work",
   "make a playbook", "turn our conventions into a skill", "document how Claude should work in
@@ -50,9 +50,10 @@ Say so rather than building something nobody needs:
 
 ## The process
 
-Detect, confirm, interview, draft, place, then test it on real work. Do not skip detection: the
-interview is short and credible only because detection did the boring half first, and asking a
-user for their test command when `package.json` states it reads as not having looked.
+Detect, confirm, interview twice (workflow architecture, then standards), draft the gate
+pipeline, place it, then test it on real work. Do not skip detection: the interview is short and
+credible only because detection did the boring half first, and asking a user for their test
+command when `package.json` states it reads as not having looked.
 
 ## 1. Detect
 
@@ -118,9 +119,23 @@ and the practised one, which is often the most useful thing the exercise produce
 
 ## 2. Interview
 
-Ask only what reading cannot answer. Go in small batches of two or three, not a wall of
-questions, and offer the fast path: the starred items alone produce a usable playbook, and the
-rest can be filled in later from real runs.
+Two interviews, in this order, because they answer different questions and the first constrains
+the second.
+
+**First, the workflow architecture**, in `references/workflow-interview.md`. These decide the
+shape of the pipeline: which tracker and whether an MCP connects it, native execution or
+subagent delegation, one working tree or a worktree per task, whether plan approval gates
+implementation, what triggers the full flow, who may commit and push, and what state a task ends
+in. Each answer adds, removes or reorders a gate, so a wrong answer there invalidates the whole
+structure rather than one rule. Work through that file, then come back here.
+
+Propose a default rather than asking an open question. "How do you want your workflow?" gets
+"I don't know"; the same person shown a concrete default says "yes, except..." and hands you the
+real answer in one exchange.
+
+**Then the standards**, below. Ask only what reading cannot answer, in small batches of two or
+three rather than a wall of questions, and offer the fast path: the starred items alone produce
+a usable playbook and the rest can be filled in later from real runs.
 
 **Definition of done.** ★ What has to be true before a task counts as finished? Tests passing,
 new tests written, types checked, docs or changelog updated, a migration tried against a copy, a
@@ -213,11 +228,49 @@ decorative.
 
 ## 4. Write it
 
-Two halves, because they answer different questions. **Standards** say what good work looks like
-here. **Workflow** says how a task travels from arrival to done. Most teams have some of the
-first written down somewhere and almost none of the second, which is the half agents most need.
+Two halves. **The gate pipeline** says how a task travels from arrival to done. **Standards**
+say what good work looks like here. Most teams have some of the second written down somewhere
+and almost none of the first, and the pipeline is the half agents most need, so write it first
+and give it the most care.
 
-Write every rule in this form:
+### The gate pipeline
+
+Write the workflow as numbered gates that close in order, not as a list of steps. The
+difference is enforcement: "write tests" is advice an agent weighs against the situation, while
+"Gate 4 does not open until Gate 3 is approved" is a thing an agent either did or did not do.
+Numbered gates also give the user something to point at when work goes wrong: "you skipped
+Gate 5" is a precise complaint that a prose workflow cannot express.
+
+Four properties make a gate a gate, and a step missing any of them is a suggestion wearing a
+gate's name:
+
+1. **An entry condition**, usually that the previous gate closed.
+2. **A definite action** naming the real tool, skill or command, never a description of one.
+3. **An exit condition that can be checked.** "Plan approved", "every review finding resolved
+   or dismissed with a reason", "issue moved to In Review and PR attached". Never "done
+   properly".
+4. **A stated behaviour when it cannot close.** The tracker is down, the user has not given a
+   go-ahead, a finding cannot be fixed. The common failure is a gate that silently evaporates
+   when its precondition fails, so write down what happens instead.
+
+Number from 0, so a tracking gate can sit ahead of triage without renumbering the rest.
+
+**Put the authority boundary in its own gate and make it loud.** Whether an agent may commit,
+push and open a pull request is the decision users most regret leaving implicit, and the one
+agents most often read generously. If the answer is "ask first", the gate has to say that
+permission is per-step, that it does not carry to the next task, that a clean review and a
+green build are not permission, and that it overrides any skill which commits as part of its
+own flow. Without that last clause an agent following a test-driven-development skill will
+commit on every green test and be correct to, because that skill told it to.
+
+**A pipeline is a cost.** Eight gates on a repo that ships a typo fix a day will be routed
+around within a week. Triage exists to stop that: define a short flow, say exactly which gates
+it still runs, and make the tiebreaker explicit, because "short flow" with vague boundaries
+becomes "no flow".
+
+### Standards
+
+Write every standards rule in this form:
 
 > **Imperative claim.** The trigger or situation, then the reason or cost.
 
@@ -245,7 +298,8 @@ Conventions that make the output usable:
 - **Match the repo's own vocabulary.** If the team says "tenant", never silently switch to
   "organization".
 
-Use `references/template.md` for the skeleton and a worked example.
+Use `references/template.md` for the skeleton and worked fragments, and
+`references/workflow-interview.md` for the questions that decide which gates exist.
 
 ## 5. Place it
 
@@ -255,8 +309,13 @@ Use `references/template.md` for the skeleton and a worked example.
 | `.claude/skills/<name>/SKILL.md` | Only when triggered | Depth on one area (migrations, this API, the billing module) without taxing every session |
 | `docs/playbook.md` | Only when read | Reference and human onboarding, plus a target for the two above to point at |
 
-**Recommend the split, not one file.** Put the handful of rules that apply to every task in
-`CLAUDE.md`, because a stop condition that loads conditionally is a stop condition that fails.
+**The gate pipeline belongs in `CLAUDE.md`, always.** It governs every task, so it has to be
+loaded before the agent decides what to do, and a pipeline that loads only when something
+triggers it has already been bypassed by the time it arrives. The same is true of the authority
+boundary: a stop condition that loads conditionally is a stop condition that fails.
+
+**Recommend the split for everything else.** Put the pipeline and the universal rules in
+`CLAUDE.md`, and move per-area depth into skills that the relevant gate points at.
 Put domain depth in skills, where it costs nothing until relevant. The common failure is cramming
 everything into `CLAUDE.md`, which taxes every session and buries the critical rules in bulk.
 
@@ -293,4 +352,10 @@ one nobody believes.
 - A skill whose description is too vague to trigger, making its content unreachable.
 - Interviewing the user for facts the repository plainly states.
 - A playbook long enough that reading it costs more than the mistakes it prevents.
+- A workflow written as prose steps rather than gates, so nothing says when one is skipped.
+- A gate with no stated behaviour for when it cannot close, which makes skipping it the default.
+- Commit and push authority left implicit, or stated without overriding the skills that commit
+  on their own.
+- A full pipeline with no short flow, which gets routed around rather than followed.
+- Hardcoded tracker status names, which break silently when a team renames a column.
 - Writing it once and never revisiting it after a rule proves wrong.

@@ -74,6 +74,18 @@ def _text_files(root, patterns, exclude):
             yield rel, path
 
 
+def _strip_code(text):
+    """Remove fenced code blocks and inline code.
+
+    Markdown inside a fence is a sample, not a link: a template showing
+    `[label](path)` is documenting syntax, not pointing anywhere. Scanning it
+    produces failures that can only be silenced by making the documentation worse.
+    """
+    text = re.sub(r"```.*?```", "", text, flags=re.S)
+    text = re.sub(r"~~~.*?~~~", "", text, flags=re.S)
+    return re.sub(r"`[^`\n]*`", "", text)
+
+
 DEFAULT_EXCLUDE = [".git/*", "node_modules/*", "vendor/*", "dist/*", "build/*",
                    ".venv/*", "venv/*", "target/*", "__pycache__/*", "*.lock"]
 
@@ -160,7 +172,7 @@ def links_resolve(name, patterns=("**/*.md",), exclude=(), why=None):
         out = []
         for rel, path in _text_files(root, patterns, skip):
             base = os.path.dirname(path)
-            body = io.open(path, encoding="utf-8", errors="replace").read()
+            body = _strip_code(io.open(path, encoding="utf-8", errors="replace").read())
             for m in re.finditer(r"\[[^\]]*\]\(([^)#:]+)\)", body):
                 target = m.group(1).strip()
                 if target.startswith(("http", "mailto", "#", "/")):
