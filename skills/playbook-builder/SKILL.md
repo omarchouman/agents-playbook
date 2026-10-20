@@ -50,8 +50,9 @@ Say so rather than building something nobody needs:
 
 ## The process
 
-Detect, confirm, interview twice (workflow architecture, then standards), merge with whatever
-instructions already exist, draft the gate pipeline, place it, then test it on real work. Do not skip detection: the interview is short and
+Detect, classify each decision as determined, inferable or must-ask, ask only the last of
+those, merge with whatever instructions already exist, draft the gate pipeline with every guess
+marked, place it, then test it on real work. Do not skip detection: the interview is short and
 credible only because detection did the boring half first, and asking a user for their test
 command when `package.json` states it reads as not having looked.
 
@@ -125,27 +126,61 @@ already enforce formatting, and CI runs typecheck plus unit plus e2e. Correct an
 here." Confirming beats interrogating, and it surfaces the gap between the intended convention
 and the practised one, which is often the most useful thing the exercise produces.
 
-## 2. Interview
+## 2. Ask only what you cannot infer
 
-Two interviews, in this order, because they answer different questions and the first constrains
-the second.
+The instinct is to interview first and draft afterwards. Resist it. People are poor at
+answering abstract questions about how they want to work and very good at correcting a concrete
+artifact in front of them, so a draft built from inference and marked with its guesses gets you
+further in one round than a questionnaire gets in two.
 
-**First, the workflow architecture**, in `references/workflow-interview.md`. These decide the
-shape of the pipeline: the repository topology, which tracker and whether an MCP connects it,
-native execution or subagent delegation, one working tree or a worktree per task, whether plan
-approval gates implementation, what triggers the full flow, who may commit and push, and what
-state a task ends in. **Topology comes first**, because a task spanning two repositories
-produces two pull requests that must merge in order, which changes what the later gates even
-mean. Each answer adds, removes or reorders a gate, so a wrong answer there invalidates the whole
-structure rather than one rule. Work through that file, then come back here.
+**Classify every architectural decision before asking anything.** Each one is in exactly one of
+three states, and only the third earns a question:
 
-Propose a default rather than asking an open question. "How do you want your workflow?" gets
-"I don't know"; the same person shown a concrete default says "yes, except..." and hands you the
-real answer in one exchange.
+| State | Meaning | What to do |
+|---|---|---|
+| **Determined** | Detection answered it outright | State the conclusion, invite correction, move on |
+| **Inferable** | The evidence points one way | Assume it, mark the assumption, keep going |
+| **Must ask** | Evidence is genuinely silent **and** a wrong guess is expensive | Ask |
 
-**Then the standards**, below. Ask only what reading cannot answer, in small batches of two or
-three rather than a wall of questions, and offer the fast path: the starred items alone produce
-a usable playbook and the rest can be filled in later from real runs.
+Both conditions are required for the third. A decision the evidence is silent on but which
+costs nothing to get wrong is an assumption, not a question: the draft will surface it and the
+user will correct it in a sentence. A decision the evidence settles is not a question even if
+it feels important.
+
+In practice this collapses most of the architecture interview:
+
+- **Determined by detection**: topology, which tracker is reachable, what CI enforces, what
+  tooling exists, the commit and branch conventions as practised.
+- **Inferable from evidence**: isolation (a repo with no branches in its history wants a single
+  tree), execution model (native with delegated exploration suits almost everyone until they
+  have seen it go wrong), plan gating (scale it to blast radius: a prose repo is light, a
+  payments service is not), review (whatever tooling already exists), triage criteria (derive
+  them from what the repo actually contains, then show them).
+- **Genuinely must ask**: the authority to commit and push, because a repository's history
+  cannot tell you what its owner wants an agent doing unsupervised; the human half of the
+  definition of done, because CI shows the mechanical half and nothing shows whether a
+  changelog entry is expected; and anything where the evidence contradicts itself, such as a
+  repo whose own standards demand branch protection that it does not have.
+
+That is usually two or three questions, not eight. `references/workflow-interview.md` holds the
+full question bank with the reasoning behind each, to consult when a decision lands in the third
+state or when a draft gets pushed back on.
+
+**Scale the ceremony to what is at stake.** A five-file prose repository does not warrant the
+same interview as a payments service, and asking as though it does reads as process for its own
+sake. Let the size of the repository, the blast radius of its changes and the number of
+contributors set how much you ask.
+
+**Then draft, with every guess visible.** Produce the complete playbook, and alongside it a
+short list in the form "I assumed X, because Y, change it if wrong". A marked assumption costs
+the user one sentence to fix and nothing to accept, while an unmarked one becomes a rule nobody
+agreed to. Never hide an inference inside the prose as though it were established.
+
+**Topology first, whatever else you skip**, because a task spanning two repositories produces
+two pull requests that must merge in order, which changes what every later gate means.
+
+**Then the standards.** Same rule: infer what the code shows, ask what it cannot. The starred
+items below are the ones worth a question even on a small repo.
 
 **Definition of done.** ★ What has to be true before a task counts as finished? Tests passing,
 new tests written, types checked, docs or changelog updated, a migration tried against a copy, a
@@ -423,6 +458,12 @@ one nobody believes.
 - A skill whose description is too vague to trigger, making its content unreachable.
 - Interviewing the user for facts the repository plainly states.
 - A playbook long enough that reading it costs more than the mistakes it prevents.
+- Interviewing before drafting, which asks someone to answer in the abstract what they could
+  correct in a second if they were looking at it.
+- Asking a question the evidence already answers, or one whose wrong answer costs nothing.
+- An inference presented as established fact rather than a marked assumption, which turns a
+  guess into a rule nobody agreed to.
+- The same weight of process on a five-file repository as on a payments service.
 - Overwriting an existing instruction file instead of restructuring it, which destroys the
   tacit knowledge that is the one thing in the repository nobody can re-derive.
 - Dropping a rule during a rewrite without proposing it, so the loss is invisible in a diff

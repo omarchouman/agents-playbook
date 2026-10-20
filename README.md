@@ -43,13 +43,18 @@ requests, to closing the loop on the tracker. A gate names a real tool, has an e
 you can check, and says what happens when it cannot close, so "you skipped Gate 5" becomes a
 precise complaint rather than a vague one.
 
-It reads the repo first, then asks the architectural questions that decide which gates exist:
-the repository topology, which issue tracker and whether an MCP connects it, branches or a
-worktree per task, native execution or subagent delegation, whether plan approval gates
-implementation, and who may commit and push. Topology comes first, because separate frontend and
-backend repositories under one folder look exactly like a monorepo and behave nothing like one:
-a task spanning both produces two pull requests that must merge in order, and neither repo's CI
-can see the mismatch. Then it asks what no amount of reading reveals: what "done" means here, which parts of
+It reads the repo first and infers what it can, so it asks two or three questions rather than
+twenty: a decision earns a question only when the evidence is genuinely silent **and** a wrong
+guess is expensive. Everything else arrives as a draft with its assumptions marked, because
+people correct a concrete playbook far better than they answer abstract questions about how they
+want to work.
+
+The decisions it works through include repository topology, which issue tracker is actually
+reachable, branches or a worktree per task, native execution or subagent delegation, whether
+plan approval gates implementation, and who may commit and push. Topology comes first, because
+separate frontend and backend repositories under one folder look exactly like a monorepo and
+behave nothing like one: a task spanning both produces two pull requests that must merge in
+order, and neither repo's CI can see the mismatch. Then it asks what no amount of reading reveals: what "done" means here, which parts of
 the codebase are dangerous, and what looks wrong but is deliberate.
 
 Try it with:

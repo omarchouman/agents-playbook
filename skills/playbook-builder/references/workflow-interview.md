@@ -7,10 +7,23 @@ rules. They are architectural: each answer adds, removes or reorders a gate, so 
 wrong means the whole pipeline is wrong. The standards interview in SKILL.md §2 asks what good
 code looks like; this one asks how work moves.
 
-Ask in the order below. Each group has a **default** to propose rather than an open question,
-because a user confronted with "how do you want your workflow?" says "I don't know", while the
-same user shown a concrete default says "yes, except..." and gives you the real answer in one
-exchange. Propose, then correct.
+**This is a reference bank, not a script.** Working through all eleven sections as a
+questionnaire is the failure mode this file is most likely to cause. SKILL.md §2 classifies each
+decision as determined, inferable, or must-ask, and only the third earns a question. Come here
+for the reasoning behind a decision that landed in the third state, or when a draft gets pushed
+back on and you need the trade-offs to re-decide.
+
+The default count is two or three questions. If you find yourself asking more than four before
+showing a draft, you are interviewing where you should be inferring.
+
+Each group states a **default to propose** rather than an open question, because a user
+confronted with "how do you want your workflow?" says "I don't know", while the same user shown
+a concrete default says "yes, except..." and gives you the real answer in one exchange. Propose,
+then correct.
+
+**Which of these usually need asking:** the authority to commit and push (§8), and the human
+half of the definition of done. The rest are normally determined by detection or safely
+inferable, and belong in the draft as marked assumptions.
 
 ## Contents
 
