@@ -12,6 +12,89 @@ when it applies, which is what loads it; repeating that here would duplicate the
 rot the first time one is renamed. They are referenced only where this repo does something
 different, and there is exactly one such case, in Deliberate deviations.
 
+---
+
+## Task pipeline
+
+Every task runs these gates in order. A gate closes before the next opens. The gates do not
+restate the rules below: they say when each one applies, and point at it.
+
+Gate 0 is deliberately unused. A tracking gate belongs there if ClickUp is ever scoped to this
+repository, and leaving the number free means adding it later does not renumber anything.
+Today there is no tracker here, and the commit log is the record.
+
+### Gate 1 - Triage
+
+Decide which flow this task takes, and say which you chose.
+
+**Full flow** (all gates) if any of these is true:
+
+- A skill is being added, renamed or removed. The name is a public identifier once the plugin
+  is installed, and it touches `plugin.json`, the README table and the review checklist.
+- A `SKILL.md` is being restructured: sections renumbered, content moved to `references/`, a
+  file split. This is what breaks cross-references, and the breakage is silent until someone
+  follows one.
+
+**Short flow** (skip Gate 2) for everything else: rewording a rule, fixing a typo, adding a
+rule to an existing section, editing a reference file in place.
+
+When it is a judgment call, run the full flow.
+
+### Gate 2 - Plan
+
+Full flow only. Produce a step-by-step plan and get it approved before editing anything. The
+cost of a wrong structural change here is a renumbering that strands cross-references across
+five skills, which is tedious rather than dangerous, so the bar for this gate is "would I have
+to redo several files if this shape is wrong".
+
+Short-flow tasks skip this. The diff is the plan.
+
+### Gate 3 - Implement
+
+Work in the main checkout, directly on `main`. No branch, per [Autonomy](#autonomy).
+
+Delegate exploration to a subagent when a question needs reading many files and only the
+conclusion matters. Keep the writing itself in the main session, so the reasoning stays visible.
+
+Follow [Writing rules](#writing-rules) and [Adding or changing a rule](#adding-or-changing-a-rule).
+Before adding any rule, apply the test in [Never write a rule a tool can check](#never-write-a-rule-a-tool-can-check):
+if `scripts/validate.py` could enforce it, add the check instead and write nothing.
+
+### Gate 4 - Review
+
+Two passes, both before anything is pushed.
+
+1. **`python3 scripts/validate.py`** must pass. If a check fails on something that is actually
+   fine, the check is wrong: fix the check, do not weaken the content. If you add or change a
+   check, run `--self-test` on the scaffold pattern to prove it can still fail.
+2. **Re-read the diff** against what the validator cannot see: does each new rule have a
+   trigger and a stated cost, does it survive a counter-example, does it duplicate something a
+   general practice skill already says, and did a restructuring drop a paragraph.
+
+Every finding is fixed or explicitly dismissed with a reason. The gate does not close with a
+known finding carried past it.
+
+### Gate 5 - Commit and push
+
+No approval needed, per [Autonomy](#autonomy). Follow [Commits](#commits): imperative subject
+around 50 characters, a body explaining why, no attribution trailers.
+
+One logical change per commit, pushed as it is finished rather than batched. If the work
+touched a rule and its checklist entry, that is one commit, not two.
+
+### Gate 6 - Confirm the remote
+
+The task is not done when the push succeeds. Check that CI went green:
+
+```bash
+gh run list --limit 1 --json conclusion,status
+```
+
+A red run means the task is still open. Local and CI run the same script, so a divergence is
+itself the finding: something is environment-dependent that should not be.
+
+This gate closes the [Definition of done](#definition-of-done).
+
 ## Stop and ask
 
 - **Rewriting published history.** The remote has been recreated once already to strip commit
