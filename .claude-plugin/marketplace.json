@@ -1,6 +1,6 @@
 {
   "name": "agents-playbook",
-  "description": "Engineering standards agents actually follow: five layer-specific practice skills for frontend, backend, database, security and git.",
+  "description": "Engineering standards agents actually follow: five layer-specific practice skills for frontend, backend, database, security and git, plus a builder for your team's own playbook.",
   "owner": {
     "name": "Omar Chouman",
     "url": "https://github.com/omarchouman"

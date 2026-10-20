@@ -1,7 +1,7 @@
 {
   "name": "agents-playbook",
   "version": "1.0.0",
-  "description": "Language-agnostic engineering standards as triggered skills: frontend, backend, database, security and git. Each loads only when the work calls for it.",
+  "description": "Language-agnostic engineering standards as triggered skills (frontend, backend, database, security, git), plus a builder that turns your team's own conventions into a playbook agents will actually follow.",
   "author": {
     "name": "Omar Chouman",
     "url": "https://github.com/omarchouman"
@@ -27,6 +27,7 @@
     "./skills/backend-practices",
     "./skills/database-practices",
     "./skills/security-practices",
-    "./skills/git-practices"
+    "./skills/git-practices",
+    "./skills/playbook-builder"
   ]
 }
