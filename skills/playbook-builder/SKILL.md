@@ -50,8 +50,8 @@ Say so rather than building something nobody needs:
 
 ## The process
 
-Detect, confirm, interview twice (workflow architecture, then standards), draft the gate
-pipeline, place it, then test it on real work. Do not skip detection: the interview is short and
+Detect, confirm, interview twice (workflow architecture, then standards), merge with whatever
+instructions already exist, draft the gate pipeline, place it, then test it on real work. Do not skip detection: the interview is short and
 credible only because detection did the boring half first, and asking a user for their test
 command when `package.json` states it reads as not having looked.
 
@@ -238,6 +238,55 @@ decorative.
 
 ## 4. Write it
 
+### Merging with what is already there
+
+Most repositories that want a playbook already have something: a `CLAUDE.md`, an `AGENTS.md`,
+a `.cursorrules`, a `CONTRIBUTING.md`, or conventions scattered through `docs/`. **Treat every
+one of these as content to restructure, never as a draft to replace.** It accumulated because
+somebody hit a problem and wrote down what they learned, and most of what it contains cannot be
+re-derived by reading the code. Overwriting it destroys the most valuable thing in the
+repository, and the user will not notice what went missing until an agent makes the mistake the
+deleted paragraph existed to prevent.
+
+Read the existing file completely before writing anything. Then sort its contents, because the
+categories have different fates:
+
+| What you found | What to do |
+|---|---|
+| Gotchas, deliberate oddities, silent failure modes | **Keep, close to verbatim.** This is the irreplaceable part. |
+| Architecture and mechanism descriptions | **Keep.** Expensive to write, and rarely wrong. |
+| Commands, ports, startup order, environment setup | **Keep, but verify.** Commands rot quietly; check them against the manifests. |
+| Local conventions and standards | **Keep**, then apply §3: anything a tool could check becomes a check. |
+| A workflow written as prose steps | **Transform into gates.** This is the main structural change, and the content survives it. |
+| Restatements of general practice | **Propose replacing** with a short rule plus a pointer, never silently. |
+| Rules referencing files, tools or services that no longer exist | **Flag, do not delete.** Stale to you may be dormant to them. |
+
+Three rules govern the merge itself:
+
+- **Show the mapping before you write.** A short list saying where each existing section lands:
+  kept as is, moved under a gate, rewritten, or proposed for removal with a reason. This is the
+  consent step for an operation that is otherwise hard to review, because a rewritten file
+  diffs as one enormous change in which a quietly dropped paragraph is invisible.
+- **Never drop anything silently.** Removal is a proposal with a reason attached, every time.
+  The user knows why a line is there and you usually do not.
+- **Keep their vocabulary, their paths and their examples.** If the file says "tenant", do not
+  switch to "organization" because the template used that word. Their terminology is part of
+  the content.
+
+**Their structure might be better than the template's.** If the existing file is already well
+organized and the only thing missing is a gated pipeline, add the pipeline and leave the rest
+alone. The template in `references/template.md` is a default for a blank page, not a shape to
+force existing content into.
+
+**Then verify nothing was lost.** Before presenting the result, check mechanically that every
+heading and every concrete fact in the old file, meaning each path, command, flag and named
+rule, appears either in the new file or in your proposed-removals list. A diff of the two files
+is enough, and it reliably catches a paragraph dropped by accident during restructuring. If the
+old file was committed, git already holds it; if it was not, say so before touching it, because
+that is the one case where a mistake is unrecoverable.
+
+### The two halves
+
 Two halves. **The gate pipeline** says how a task travels from arrival to done. **Standards**
 say what good work looks like here. Most teams have some of the second written down somewhere
 and almost none of the first, and the pipeline is the half agents most need, so write it first
@@ -280,77 +329,15 @@ becomes "no flow".
 
 ### Referencing general practice skills
 
-A playbook sits alongside whatever general standards the team already has available, including
-the `frontend-practices`, `backend-practices`, `database-practices`, `security-practices` and
-`git-practices` skills in this plugin. Deciding what to say about them is its own judgment, and
-the obvious answer is wrong.
+A playbook sits alongside whatever general standards are already available, including the
+`frontend-practices`, `backend-practices`, `database-practices`, `security-practices` and
+`git-practices` skills in this plugin. The obvious approach, pointing at them everywhere, is
+wrong: each already carries a description saying when it applies, and that description is what
+loads it. Reference one only where the playbook changes what would otherwise happen, and write
+the reference so the rule survives the skill being absent.
 
-**Do not restate a skill's trigger conditions.** Every skill carries a description saying when
-it applies, and that description is the mechanism that loads it. Writing "for anything touching
-auth, use `security-practices`" duplicates text that already exists, costs context in every
-session, and breaks silently when a skill is renamed. If the description works, the skill
-arrives without the playbook's help; if it does not, fix the description rather than papering
-over it from here.
-
-**Reference a skill only where you are changing what would otherwise happen.** Four cases earn
-their place:
-
-- **Making it mandatory.** A description invites the agent to judge relevance. A gate can
-  remove the judgment: "Gate 4 does not close until the relevant practice skill has been read
-  and the change verified against it." Use this for whatever the team treats as
-  non-negotiable, not for everything.
-- **Binding it to a moment.** Descriptions trigger on subject matter. A gate triggers on
-  position in the pipeline, which is information a description cannot express: before writing
-  code, before the review gate closes, after a contract changes.
-- **Resolving a conflict.** Where the team's convention contradicts the general skill, say
-  which wins and why. This is the most valuable sentence in the whole playbook, because it is
-  the one thing that exists nowhere else, and without it an agent will follow the general rule
-  and be confidently wrong.
-- **Narrowing to a section.** "Apply `security-practices` §3 to every endpoint that takes an
-  id" is actionable in a way that pointing at an entire skill is not.
-
-The natural home is a table at the implementation gate, mapping each area of the codebase to
-what governs it, so one lookup answers "what should I have read before touching this":
-
-```markdown
-| Area | Team conventions | General practice |
-|---|---|---|
-| `api/` | [`docs/api-conventions.md`](docs/api-conventions.md) | `backend-practices` |
-| `web/` | none yet | `frontend-practices` |
-| `db/migrations/` | [`docs/db.md`](docs/db.md) | `database-practices` (§6 before any migration) |
-| anything with auth or user input | [`docs/authz.md`](docs/authz.md) | `security-practices` |
-```
-
-**Make references additive, never load-bearing.** A playbook that cites skills is committed to
-a shared repository, where a teammate may not have them installed. Do not solve that by hedging
-at each site: "if `security-practices` is available, use it" tells an agent nothing about what
-to do when it is not, so the rule quietly evaporates for exactly the reader who needed it most.
-
-Write the rule so it stands on its own and let the pointer add depth:
-
-```markdown
-✗ If `security-practices` is available, follow it for authorization.
-
-✓ **Every endpoint checks ownership of the object, not just the route.** Returning another
-  tenant's row to an authenticated caller is the most common serious bug in this codebase.
-  `security-practices` §3 has the full treatment.
-```
-
-The second works whether or not the skill is installed, because the sentence carrying the rule
-does not depend on it. The first is a conditional wrapped around the only content.
-
-Then **declare the dependency once, at the top**, rather than at every reference:
-
-```markdown
-## Expected tooling
-
-General practice comes from the `agents-playbook` plugin: `/plugin install agents-playbook`.
-If a referenced skill is not in your available skills, say so once and carry on. Every rule
-below stands without it; what you lose is the reasoning behind the pointer, not the rule.
-```
-
-That tells an agent what to do in the absent case, which "if available" does not, and it keeps
-the hedge in one place instead of multiplying it across the file.
+`references/referencing-skills.md` has the four cases that earn a reference, the area table
+format, and the degradation pattern.
 
 ### Standards
 
@@ -436,6 +423,10 @@ one nobody believes.
 - A skill whose description is too vague to trigger, making its content unreachable.
 - Interviewing the user for facts the repository plainly states.
 - A playbook long enough that reading it costs more than the mistakes it prevents.
+- Overwriting an existing instruction file instead of restructuring it, which destroys the
+  tacit knowledge that is the one thing in the repository nobody can re-derive.
+- Dropping a rule during a rewrite without proposing it, so the loss is invisible in a diff
+  that already changes every line.
 - Restating a skill's own trigger conditions, which duplicates the mechanism that already
   loads it and rots the moment the skill is renamed.
 - Pointing at a general skill without saying what the team does differently, which leaves the
