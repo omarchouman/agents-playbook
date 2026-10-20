@@ -34,6 +34,10 @@ Number gates from 0 so a tracking gate can sit ahead of triage without renumberi
 <Two or three sentences: what this is, who uses it, what it sits on top of. Enough that an
 agent reading only this file knows what domain it is in.>
 
+<The topology, in one line, because it decides how many pull requests a task produces: a single
+project, a monorepo of N packages, or N separate repositories under this folder. If separate,
+name them and say which is the contract producer.>
+
 <If there are distinct user roles or tenancy concepts, list them here. They shape every
 authorization decision that follows.>
 
@@ -107,6 +111,24 @@ scope to the branch explicitly.>
 
 <What state the task ends in. Where work parks if it stalls. Who is allowed to mark it Done.
 What happens to acceptance criteria that did not ship.>
+
+<If a task routinely spans more than one repository, add this to the implement and PR gates:>
+
+```markdown
+### Spanning repositories
+
+A task touching both <producer> and <consumer> is one unit of work in two repositories.
+
+- **Order**: <producer> first, always. The consumer cannot be reviewed against a contract
+  that does not exist yet.
+- **Regenerate the client** after a contract change, and commit it: `<command>`. Drift here
+  is invisible to both CI runs, because each repository passes in isolation.
+- **Two pull requests, one issue.** Attach both. The issue does not move until both merge.
+- **Merge order is <producer> then <consumer>**, and the consumer is broken in between.
+  Prefer an additive change that makes the order irrelevant: add the new shape, ship it,
+  migrate the consumer, remove the old shape in a later task.
+- **Done means both merged.** A green build on one side is half a task.
+```
 
 ---
 

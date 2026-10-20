@@ -177,7 +177,25 @@ for p_ in markdown_files():
                  % (p_, m.group(1)))
 done()
 
-# 8. No agent attribution anywhere in history. Rewriting history to remove one is
+# 8. In-document anchor links must match a real heading. Renumbering sections rewrites
+#    the headings and silently strands every anchor pointing at them.
+fail, done = check("in-document anchor links match a heading")
+
+
+def _slug(heading):
+    s = re.sub(r"[^\w\s-]", "", heading.lower())
+    return re.sub(r"\s+", "-", s.strip())
+
+
+for p_ in markdown_files():
+    text = _strip_code(io.open(p_, encoding="utf-8").read())
+    anchors = {_slug(m.group(1)) for m in re.finditer(r"^#{1,6} (.+)$", text, re.M)}
+    for m in re.finditer(r"\]\(#([^)]+)\)", text):
+        if m.group(1) not in anchors:
+            fail("%s links #%s with no matching heading" % (p_, m.group(1)))
+done()
+
+# 9. No agent attribution anywhere in history. Rewriting history to remove one is
 #    expensive, so catching it before it spreads is the whole point.
 fail, done = check("no agent attribution in commit messages")
 try:

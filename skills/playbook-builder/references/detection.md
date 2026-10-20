@@ -15,6 +15,7 @@ Two rules throughout:
 
 ## Contents
 
+- [Topology: what shape is this folder?](#topology-what-shape-is-this-folder)
 - [Node and TypeScript](#node-and-typescript)
 - [Python](#python)
 - [Go](#go)
@@ -24,6 +25,54 @@ Two rules throughout:
 - [Java and Kotlin](#java-and-kotlin)
 - [.NET](#net)
 - [Stack-independent](#stack-independent)
+
+## Topology: what shape is this folder?
+
+Run this before anything else. It decides where the playbook can live, how many pull requests
+a task produces, and whether merge order matters, so every later answer depends on it.
+
+```bash
+# How many repositories are in play? More than one means this is not a monorepo,
+# whatever the directory layout suggests.
+find . -maxdepth 3 -name .git -not -path '*/node_modules/*' | sed 's|/.git$||'
+
+# Is the parent folder itself a repository? If not, nothing placed here is shareable.
+git rev-parse --show-toplevel 2>/dev/null || echo "PARENT IS NOT A GIT REPO"
+
+# Workspace tooling: one repo with coordinated packages
+ls pnpm-workspace.yaml turbo.json nx.json lerna.json rush.json go.work 2>/dev/null
+grep -l '\[workspace\]' Cargo.toml 2>/dev/null
+grep -rl 'include(' settings.gradle settings.gradle.kts 2>/dev/null
+python3 -c "import json;d=json.load(open('package.json'));print('workspaces:',d.get('workspaces'))" 2>/dev/null
+
+# Submodules or subtrees
+cat .gitmodules 2>/dev/null || echo "no submodules"
+
+# Independent projects side by side: a manifest in each immediate subdirectory
+for d in */; do
+  m=$(ls "$d"package.json "$d"pyproject.toml "$d"go.mod "$d"Cargo.toml "$d"pom.xml \
+         "$d"build.gradle "$d"composer.json 2>/dev/null | head -1)
+  [ -n "$m" ] && echo "$d -> $(basename "$m")"
+done
+
+# Existing instruction files, which reveal whether anyone has already picked a layout
+find . -maxdepth 3 -name 'CLAUDE.md' -not -path '*/node_modules/*'
+```
+
+Read the result as one of five shapes, and say which you concluded so the user can correct it:
+
+| Signal | Shape |
+|---|---|
+| One `.git`, one manifest | **Single project** |
+| One `.git`, workspace manifest present | **Tooled monorepo** |
+| One `.git`, manifests in sibling directories, no workspace file | **Untooled monorepo** |
+| Several `.git` directories under a parent | **Separate repos side by side** |
+| One `.git` plus `.gitmodules` | **Superproject with submodules** |
+
+The fourth is the one that catches people, because the directory listing looks identical to a
+monorepo while almost every workflow consequence differs. If `git rev-parse` reported that the
+parent is not a repository, anything written there is invisible to teammates, to CI, and to
+anyone who clones a single repo, which is a finding to raise before writing a line.
 
 ## Node and TypeScript
 

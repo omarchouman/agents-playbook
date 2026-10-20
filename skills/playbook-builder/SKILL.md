@@ -60,7 +60,15 @@ command when `package.json` states it reads as not having looked.
 Run these before asking anything. For ecosystem-specific detail (Node, Python, Go, Rust, Ruby,
 PHP, Java, .NET), read `references/detection.md`.
 
+Start with topology, since it determines where the playbook can live and how many pull
+requests a task produces. The full command set is in `references/detection.md`.
+
 ```bash
+# How many repositories are actually in play, and is the parent one of them?
+find . -maxdepth 3 -name .git -not -path '*/node_modules/*' | sed 's|/.git$||'
+git rev-parse --show-toplevel 2>/dev/null || echo "PARENT IS NOT A GIT REPO"
+ls pnpm-workspace.yaml turbo.json nx.json go.work .gitmodules 2>/dev/null
+
 # What already instructs agents here, which you are extending rather than replacing
 ls -a | grep -iE 'claude|agents|cursor|copilot|windsurf|\.rules'
 find . -maxdepth 3 -name 'CLAUDE.md' -o -maxdepth 3 -name 'AGENTS.md' | grep -v node_modules
@@ -123,10 +131,12 @@ Two interviews, in this order, because they answer different questions and the f
 the second.
 
 **First, the workflow architecture**, in `references/workflow-interview.md`. These decide the
-shape of the pipeline: which tracker and whether an MCP connects it, native execution or
-subagent delegation, one working tree or a worktree per task, whether plan approval gates
-implementation, what triggers the full flow, who may commit and push, and what state a task ends
-in. Each answer adds, removes or reorders a gate, so a wrong answer there invalidates the whole
+shape of the pipeline: the repository topology, which tracker and whether an MCP connects it,
+native execution or subagent delegation, one working tree or a worktree per task, whether plan
+approval gates implementation, what triggers the full flow, who may commit and push, and what
+state a task ends in. **Topology comes first**, because a task spanning two repositories
+produces two pull requests that must merge in order, which changes what the later gates even
+mean. Each answer adds, removes or reorders a gate, so a wrong answer there invalidates the whole
 structure rather than one rule. Work through that file, then come back here.
 
 Propose a default rather than asking an open question. "How do you want your workflow?" gets
@@ -353,6 +363,10 @@ one nobody believes.
 - Interviewing the user for facts the repository plainly states.
 - A playbook long enough that reading it costs more than the mistakes it prevents.
 - A workflow written as prose steps rather than gates, so nothing says when one is skipped.
+- Treating separate repositories under one parent folder as a monorepo, which hides the merge
+  ordering problem until a client ships against an endpoint that does not exist yet.
+- A playbook written into a parent folder that is not itself a repository, so nobody else
+  ever sees it.
 - A gate with no stated behaviour for when it cannot close, which makes skipping it the default.
 - Commit and push authority left implicit, or stated without overriding the skills that commit
   on their own.
