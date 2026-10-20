@@ -1,3 +1,15 @@
+---
+name: git-practices
+description: >-
+  Standards for commits, branching and collaboration: atomic commits, what a commit message must
+  say and why, branching models, the never-rewrite-published-history rule, merge versus squash
+  versus rebase, force-push safety, pull request size and review, what belongs in a repository,
+  recovery with reflog and bisect and revert, tags and branch protection. Use this before making
+  a commit, writing a commit message, opening or reviewing a pull request, rebasing, rewriting
+  history, resolving a conflict, or adding anything generated or binary to the repo. Worth
+  reading on every commit, because commit atomicity is what makes bisect and revert work later.
+---
+
 # Git and Version Control Practices
 
 Applies to any project using Git, in any language, with any branching model. The
@@ -131,7 +143,7 @@ a branch someone else is building on is not.
 If you must rewrite a shared branch (a committed secret, a huge accidental binary), treat
 it as an incident: tell everyone first, agree a time, and give explicit re-sync
 instructions. This is the same reasoning that makes migrations immutable once they have
-run anywhere (`database-and-migrations.md` §6.1).
+run anywhere (`database-practices` §6.1).
 
 ### 4.2 Cleaning up before review
 
@@ -220,13 +232,13 @@ collapses into one. If your team invests in commit hygiene, squashing throws tha
   committed file changes nothing; you also need `git rm --cached`.
 - **Commit lockfiles for applications** (`package-lock.json`, `poetry.lock`, `Cargo.lock`,
   `go.sum`). They are what make a build reproducible. Libraries usually do not commit them.
-  See `security.md` §9.
+  See `security-practices` §9.
 - **Commit an example environment file** (`.env.example`) with every required key present
   and every value a placeholder. Never commit the real one.
 - **Never commit secrets.** Not keys, tokens, certificates, connection strings, or
   credentials, not even briefly, not even in a branch you plan to delete. **A secret that
   reaches a remote is compromised and must be rotated**, because removing it from history
-  does not remove it from clones, forks, PR views, or CI caches. See `security.md` §5.
+  does not remove it from clones, forks, PR views, or CI caches. See `security-practices` §5.
 - **Run secret scanning as a pre-commit hook and in CI.** Catching a key before it is pushed
   costs seconds; catching it afterwards costs a rotation.
 - **Keep large binaries out.** Git stores every version of every binary forever, and a
@@ -302,7 +314,7 @@ Rules that are enforced hold; rules that are merely documented decay.
 - **Consider signed commits** (GPG, SSH, or gitsign) where supply-chain provenance matters,
   and require them on protected branches if you adopt them.
 - **Pin third-party CI actions by commit SHA**, not by tag: tags are mutable, and a
-  compromised action runs with your pipeline's credentials. See `security.md` §9.
+  compromised action runs with your pipeline's credentials. See `security-practices` §9.
 
 ---
 
@@ -326,47 +338,3 @@ Rules that are enforced hold; rules that are merely documented decay.
 - Moving a published tag.
 - Relying on client-side hooks as an enforcement mechanism.
 - Working directly on `main`.
-
----
-
-## Review checklist
-
-**Commits**
-- [ ] One logical change per commit; no "and" in the subject
-- [ ] Refactors and reformatting separated from behaviour changes
-- [ ] Every commit builds and passes tests independently
-- [ ] Subject imperative, capitalized, no trailing period, ~50 chars
-- [ ] Blank line before a body wrapped at ~72
-- [ ] Body explains why, not what, wherever the change is not self-evident
-- [ ] Issue referenced, with the symptom described in the message itself
-
-**Branch and history**
-- [ ] Branch is short-lived and named to convention; not committed to `main` directly
-- [ ] Base branch integrated regularly, not only at the end
-- [ ] No rewriting of history anyone else may have pulled
-- [ ] Force-pushes use `--force-with-lease`
-- [ ] Branch cleaned up before review, not during
-- [ ] Repository's merge strategy applied consistently
-- [ ] Conflicts resolved by reading both sides; tests run afterwards; no markers committed
-
-**Pull request**
-- [ ] Small enough to review properly, or split into a stack
-- [ ] Description covers what, why, how to verify, and the risk
-- [ ] Blocking and non-blocking review comments distinguished
-- [ ] Green before merge; branch deleted after
-
-**Repository contents**
-- [ ] `.gitignore` present and covering build output, deps, editor files, env files
-- [ ] Lockfile committed (applications); `.env.example` committed, real `.env` not
-- [ ] No secrets in the diff or anywhere in history; any leak rotated, not just removed
-- [ ] Secret scanning runs pre-commit and in CI
-- [ ] No large binaries outside LFS
-- [ ] Generated files either absent or CI-verified as current
-
-**Protection**
-- [ ] `main` protected: PR required, checks required, force-push and deletion forbidden
-- [ ] Required checks cover build, tests, lint, format, audit, secret scan
-- [ ] Hooks fast and treated as convenience, with enforcement server-side
-- [ ] `CODEOWNERS` routes sensitive paths
-- [ ] Releases tagged with annotated tags; published tags never moved
-- [ ] Third-party CI actions pinned by SHA

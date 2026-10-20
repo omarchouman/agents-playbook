@@ -1,3 +1,16 @@
+---
+name: security-practices
+description: >-
+  Defensive security standards: authentication and sessions, object-level authorization and
+  multi-tenant scoping, the injection classes (SQL, XSS, command, path, template,
+  deserialization, SSRF), file uploads, secrets handling, transport and browser headers, logging
+  and audit, data protection and supply chain. Use this whenever the user touches auth,
+  permissions, user input, uploads, secrets, tokens, PII or dependencies, and whenever reviewing
+  code for vulnerabilities. Use it even when security is never mentioned, because the
+  highest-impact bugs - a missing object-level ownership check, persisting the raw request body
+  - arrive inside ordinary feature work. Read references/review-checklist.md for a review pass.
+---
+
 # Security Practices
 
 Applies to any application handling user data, credentials, money, or third-party
@@ -141,7 +154,7 @@ the one people forget.
   assignment even when validation ran first, because validation checked the fields it knew
   about and passed the rest through untouched. Make the validated object the only thing in
   scope after the boundary, so reaching for the raw body requires deliberately going back
-  for it. See `backend-and-api.md` §3 on parsing rather than validating.
+  for it. See `backend-practices` §3 on parsing rather than validating.
 
   ```
   create(request.body)         ← ✗ validated, but every extra key rides along
@@ -374,7 +387,7 @@ service.
 - **Support deletion and export** where the law requires it (GDPR, CCPA), and make sure it
   reaches backups, logs, analytics, caches, and third-party processors.
 - **Never use production personal data in development, testing, demos, or LLM prompts.**
-  Anonymize or generate. See `database-and-migrations.md` §7.
+  Anonymize or generate. See `database-practices` §7.
 - **Use constant-time comparison for secrets** (tokens, HMACs, signatures):
   `hmac.compare_digest`, `crypto.timingSafeEqual`. `==` leaks length and content via timing.
 - **Generate all security-relevant randomness with a CSPRNG**: `secrets`, `crypto.randomBytes`,
@@ -422,7 +435,7 @@ service.
   never touching the raw request body, every endpoint carrying an authorization annotation.
 - **Guard destructive tooling against production**, including your own maintenance scripts,
   and remember that automation and coding agents execute commands without the hesitation a
-  human would have. See `database-and-migrations.md` §7.
+  human would have. See `database-practices` §7.
 - **Write regression tests for security fixes**: the same test that reproduces the
   vulnerability keeps it fixed.
 - **Test authorization explicitly**: for each protected endpoint, assert that an anonymous
@@ -460,63 +473,3 @@ service.
 - No rate limiting on login, reset, or expensive endpoints.
 - Production data copied into a development database.
 - Security controls implemented only on the client.
-
----
-
-## Review checklist
-
-**Authentication**
-- [ ] Argon2id/scrypt/bcrypt hashing via a maintained library
-- [ ] No user enumeration in login, registration, or reset responses or timings
-- [ ] Rate limiting and lockout on auth endpoints
-- [ ] Reset tokens random, hashed at rest, single-use, short-lived
-- [ ] Session id rotated on login and privilege change; logout invalidates server-side
-- [ ] Cookies `HttpOnly`, `Secure`, `SameSite`; no tokens in `localStorage`
-- [ ] JWTs (if used) verify pinned alg, `exp`, `iss`, `aud`; refresh tokens rotate and revoke
-- [ ] MFA available; recovery codes hashed
-
-**Authorization**
-- [ ] Every endpoint checks object-level ownership/permission, not just the route
-- [ ] Deny by default; policy centralized and testable
-- [ ] Identity and role derived server-side only
-- [ ] Mass assignment prevented by an explicit field allow-list
-- [ ] Writes take the validated result, never the raw request body
-- [ ] Multi-tenant queries scoped at a layer that can't be bypassed
-- [ ] Tests assert denial for anonymous, other-user, and lower-privilege callers
-
-**Input**
-- [ ] Schema validation at the boundary; allow-lists, not blocklists
-- [ ] All lengths, ranges, sizes, and depths bounded, before per-element rules run
-- [ ] Unexpected keys rejected at every level of nested input
-- [ ] Framework input normalization (trimming, empty-to-null) understood and overridden where wrong
-- [ ] All SQL parameterized; dynamic identifiers allow-listed
-- [ ] Output escaped per context; no raw HTML injection; parsing sanitizer used for rich text
-- [ ] CSP deployed without `unsafe-inline`/`unsafe-eval`
-- [ ] No shell interpolation; path traversal prevented by resolve-and-verify
-- [ ] No untrusted deserialization; no user input reaching `eval` or a template compiler
-- [ ] SSRF controls on any user-supplied URL fetch; metadata endpoint blocked
-- [ ] Uploads type-sniffed, size-limited, renamed, stored off-origin, never executed
-
-**Secrets & transport**
-- [ ] No secrets in the repo, client bundle, or logs; scanning in CI
-- [ ] Secrets sourced from a manager/env at runtime; per-environment; rotatable
-- [ ] HTTPS enforced with HSTS; certificate verification never disabled
-- [ ] Security headers set; CORS origins allow-listed
-- [ ] CSRF protection on cookie-authenticated state changes
-- [ ] Redirect targets validated
-
-**Data**
-- [ ] Minimum data collected; retention defined and enforced
-- [ ] Encrypted at rest and in transit; authenticated encryption; keys in a KMS
-- [ ] CSPRNG for all security randomness; constant-time comparison for secrets
-- [ ] No production personal data outside production
-
-**Operations**
-- [ ] No internal details in error responses; debug mode off in production
-- [ ] Security events audited; logs shipped off-host and PII-redacted
-- [ ] Alerting on auth-failure and authz-denial spikes
-- [ ] Dependencies pinned, lockfile committed, scanning in CI, patch SLA defined
-- [ ] CI/CD least-privilege, OIDC over static keys, third-party actions SHA-pinned
-- [ ] `SECURITY.md` present; incident response plan documented
-- [ ] Architecture tests enforce the structural invariants
-- [ ] Destructive tooling refuses to run against production

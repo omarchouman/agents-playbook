@@ -1,0 +1,16 @@
+{
+  "name": "agents-playbook",
+  "description": "Engineering standards agents actually follow: five layer-specific practice skills for frontend, backend, database, security and git.",
+  "owner": {
+    "name": "Omar Chouman",
+    "url": "https://github.com/omarchouman"
+  },
+  "plugins": [
+    {
+      "name": "agents-playbook",
+      "source": "./",
+      "description": "Language-agnostic engineering standards as triggered skills: frontend, backend, database, security and git.",
+      "category": "engineering"
+    }
+  ]
+}

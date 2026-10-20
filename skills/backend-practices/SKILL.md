@@ -1,3 +1,15 @@
+---
+name: backend-practices
+description: >-
+  Engineering standards for server-side work in any language: API contracts and HTTP semantics,
+  schema validation at the boundary, the error contract, layering, transactions and concurrency,
+  idempotency, resilient calls to other services, background jobs and queues, caching,
+  observability and testing. Use this whenever the user designs or changes an endpoint, service,
+  handler, queue consumer, cron or background job, and whenever reviewing server code. It covers
+  two outage-grade mistakes that look fine in review: dispatching a job inside a transaction,
+  and an HTTP client with no timeout. Read references/review-checklist.md when reviewing a diff.
+---
+
 # Backend and API Practices
 
 Applies to any server-side application or service: REST, GraphQL, gRPC, or RPC; monolith
@@ -14,7 +26,7 @@ process boundary.
 1. **The API contract is the product.** Internals can be rewritten; a contract you have
    published cannot. Design it before you implement it, and change it only additively.
 2. **Never trust the caller.** Not the browser, not the mobile app, not the other
-   microservice. Validate and authorize at every entry point. See `security.md`.
+   microservice. Validate and authorize at every entry point. See the `security-practices` skill.
 3. **The network fails, and it fails partially.** Every remote call can hang, time out,
    return garbage, or succeed after you gave up. Design for that, not for the happy path.
 4. **Make operations safe to repeat.** Retries are a fact of distributed systems.
@@ -80,7 +92,7 @@ monitoring, alerting, and retry logic.
   which grow. Enforce a default (e.g. 20) and a hard maximum (e.g. 100) page size server-side.
 - **Prefer cursor (keyset) pagination** over offset for anything large or frequently
   written. Offset pagination gets slower the deeper you go and silently skips or duplicates
-  rows when the underlying data changes between pages. See `database-and-migrations.md` §4.3.
+  rows when the underlying data changes between pages. See `database-practices` §4.3.
 - **Filtering, sorting, and field selection go in query parameters**, and every sortable
   or filterable field must be **allow-listed**. Never interpolate a client-supplied column
   name into a query.
@@ -160,7 +172,7 @@ Return one machine-readable shape for every error in the service:
 ### 4.2 Rules
 
 - **Never leak internals**: no stack traces, SQL, file paths, dependency names, or internal
-  hostnames in a response. Log them; return a code and a request id. See `security.md` §7.
+  hostnames in a response. Log them; return a code and a request id. See `security-practices` §7.
 - **Fail fast and loudly on programmer error** (misconfiguration, invalid state, missing
   required env var). Crash at startup rather than serving broken traffic.
 - **Handle expected failures explicitly** (validation, conflict, not-found, dependency
@@ -222,7 +234,7 @@ has leaked.
   parsing, route tables, template compilation, dependency wiring, regex compilation. Make it
   an explicit step in the deployment pipeline rather than a lazy cache that the first
   unlucky request pays for.
-- **Never commit secrets.** See `security.md` §5.
+- **Never commit secrets.** See `security-practices` §5.
 
 ### 5.3 Services
 
@@ -287,7 +299,7 @@ automatically.
   `If-Match`/`ETag` turns silent last-write-wins overwrites into a `409` the user can act on.
 - **Acquire locks in a consistent global order** to avoid deadlocks, and keep them brief.
 - **Enforce invariants in the database, not only in code.** Application-level checks race;
-  unique and foreign-key constraints do not. See `database-and-migrations.md` §2.
+  unique and foreign-key constraints do not. See `database-practices` §2.
 - **Making a mutation idempotent** is the single highest-value robustness change available
   to most APIs. For creates, accept a client-supplied `Idempotency-Key`, store it with the
   result, and return the stored result on replay.
@@ -400,7 +412,7 @@ automatically.
 ## 9. Caching
 
 - **Know what you're solving.** Caching hides a performance problem; sometimes that is the
-  right call, but check for a missing index first (`database-and-migrations.md` §3).
+  right call, but check for a missing index first (`database-practices` §3).
 - **Cache invalidation is the hard part, so choose a strategy explicitly**: short TTL
   (simple, tolerates staleness), explicit invalidation on write (fresh, easy to get wrong),
   or versioned keys (safe, wastes space). Write down which you chose and why.
@@ -430,7 +442,7 @@ automatically.
   boundaries via a header. Return it to the client too.
 - **Never log secrets, credentials, tokens, full card numbers, or unnecessary PII.**
   Maintain a redaction list and apply it in the logger itself, not at each call site. See
-  `security.md` §7.
+  `security-practices` §7.
 - **Use levels meaningfully.** `ERROR` = a human must look at this. `WARN` = degraded but
   handled. `INFO` = notable business events. `DEBUG` = off in production. An `ERROR` log
   that fires routinely trains everyone to ignore all `ERROR` logs.
@@ -464,7 +476,7 @@ Conflating them causes restart loops when a database blips.
 ## 11. Performance
 
 - **Profile before optimizing.** The bottleneck is almost never where it feels like it is.
-  In most web backends it is the database (§4 of `database-and-migrations.md`) or a
+  In most web backends it is the database (§4 of the `database-practices` skill) or a
   synchronous remote call.
 - **N+1 queries are the default failure mode of every ORM.** Assert on query counts in tests
   for hot paths; eager-load deliberately.
@@ -475,7 +487,7 @@ Conflating them causes restart loops when a database blips.
 - **Do work once**: compute-per-request that could be compute-per-deploy (config parsing,
   regex compilation, template parsing, key derivation) belongs at startup.
 - **Rate-limit every public endpoint**, and more strictly on expensive and auth-related ones.
-  See `security.md` §6.
+  See `security-practices` §6.
 
 ---
 
@@ -533,63 +545,6 @@ Conflating them causes restart loops when a database blips.
 - Stack traces or SQL errors in API responses.
 - Config read from env vars scattered through business logic, with unsafe defaults.
 - Cron jobs running once per app instance.
-- `SELECT *` mapped to a response DTO; see `database-and-migrations.md`.
+- `SELECT *` mapped to a response DTO; see the `database-practices` skill.
 - Sequential integer ids exposed publicly.
 - Logging full request bodies containing credentials or PII.
-
----
-
-## Review checklist
-
-**Contract**
-- [ ] Correct HTTP method and status code semantics
-- [ ] Versioned path; all changes additive within the version
-- [ ] Every collection paginated with an enforced max page size
-- [ ] Sort/filter fields allow-listed
-- [ ] Consistent error envelope with a stable `code` and a `request_id`
-- [ ] No internal details (stack traces, SQL, hostnames) in responses
-
-**Validation & auth**
-- [ ] Schema validation at the boundary before any logic
-- [ ] Unknown fields rejected; lengths, ranges, and collection sizes bounded
-- [ ] Every endpoint authenticated and authorized on the object, not just the route
-- [ ] Rate limits on public and expensive endpoints
-
-**Structure**
-- [ ] Domain logic testable without HTTP or a database
-- [ ] No ORM entities crossing the transport boundary
-- [ ] Config parsed and validated at startup; no unsafe defaults
-- [ ] Environment read only in the config layer
-- [ ] Dependencies injected, not global
-- [ ] Strict type checking on; guard clauses over nested conditionals
-
-**Data & concurrency**
-- [ ] Transactions short, with no I/O inside
-- [ ] Jobs and events dispatched after commit, never inside the transaction
-- [ ] Invariants enforced by database constraints
-- [ ] Concurrent updates guarded (version/`FOR UPDATE`/atomic update)
-- [ ] Mutations idempotent, or protected by an idempotency key
-
-**Remote calls & jobs**
-- [ ] Explicit timeouts on every client; deadlines propagated
-- [ ] One configured, injected client per dependency
-- [ ] Retries only on idempotent ops, with backoff + jitter and a cap
-- [ ] Optional dependencies degrade gracefully
-- [ ] Background jobs idempotent, bounded-retry, with a monitored DLQ
-- [ ] Jobs carry their context explicitly; no ambient request state read in a worker
-- [ ] Deduplication skips emit a metric
-- [ ] Consumers can be paused without a deploy
-- [ ] Scheduled jobs guarded against multi-instance execution
-
-**Operability**
-- [ ] Structured logs with correlation id; secrets and PII redacted
-- [ ] Rate/error/duration/saturation metrics; percentiles not averages
-- [ ] Separate liveness and readiness endpoints
-- [ ] Alerts on user-visible symptoms, each with a runbook
-
-**Testing**
-- [ ] Domain unit tests fast and I/O-free
-- [ ] Integration tests against a real datastore
-- [ ] Failure paths covered: timeout, 5xx, malformed input, conflict, denial
-- [ ] Regression test accompanies every bug fix
-- [ ] No real clock or real network in tests; no `sleep()`

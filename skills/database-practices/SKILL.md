@@ -1,3 +1,16 @@
+---
+name: database-practices
+description: >-
+  Engineering standards for schema and query work: column types, constraints, indexing, query
+  performance, keyset pagination, transactions and lost-update prevention, and zero-downtime
+  migrations including expand/contract, batched backfills, squashing and destructive-change
+  procedure. Use this before shipping any migration and whenever the user designs a table, adds
+  a column or index, writes a non-trivial query, or hits ORM query-performance trouble. The
+  safe-versus-dangerous operation list prevents table-locking outages, and the batch-iteration
+  section covers a loop that silently skips half its rows. Read references/review-checklist.md
+  when reviewing a schema or query diff.
+---
+
 # Database and Migrations Practices
 
 Applies to relational databases primarily (PostgreSQL, MySQL, SQL Server, SQLite), with a
@@ -38,7 +51,7 @@ query, or shipping any migration.
   PostgreSQL, `TEXT` with a `CHECK` length is equivalent and easier to change.)
 - **Choose your primary key deliberately:**
   - `BIGINT` identity: smallest, fastest, but sequential and enumerable. Never expose it
-    publicly (see `backend-and-api.md` §2.1).
+    publicly (see `backend-practices` §2.1).
   - `UUIDv7` / `ULID`: time-sortable, safe to expose, index-friendly. **Preferred default
     for new systems.**
   - `UUIDv4`: random. Safe to expose, but random insertion order causes B-tree page splits
@@ -100,7 +113,7 @@ CREATE UNIQUE INDEX ON subscriptions (account_id) WHERE status = 'active';
   stop accumulating, and turns expiry into application logic that someone will forget.
   A key-value store with a native TTL expresses "valid for fifteen minutes" directly and
   disposes of the data itself. Keep in the table only what you must query, join, or report
-  on. (Tokens still need hashing at rest wherever they live: see `security.md` §2.2.)
+  on. (Tokens still need hashing at rest wherever they live: see `security-practices` §2.2.)
 - **Use `JSONB` for genuinely schemaless data**: third-party payloads, user-defined fields,
   event bodies. Do **not** use it to avoid writing a migration: you lose type checking,
   constraints, and query planning, and you will end up validating in five places.
@@ -124,7 +137,7 @@ Pick one convention per repo and never mix:
   unique constraints must become partial (`… WHERE deleted_at IS NULL`). Missing that filter
   in one query is the classic soft-delete leak.
 - **Hard-delete transient, high-volume, or legally-must-be-erased data.** Retention and
-  erasure obligations (GDPR "right to erasure") override convenience; see `security.md` §8.
+  erasure obligations (GDPR "right to erasure") override convenience; see `security-practices` §8.
 - **Consider an archive table** rather than either, when history matters but volume doesn't
   belong in the hot table.
 
@@ -181,7 +194,7 @@ sequential scan on a large table in a hot query is the finding you're looking fo
 
 - **Always use parameterized queries.** Never build SQL by string concatenation with user
   input. This is SQL injection, the highest-impact and most preventable vulnerability in
-  this document. See `security.md` §4.2. When a table or column name must be dynamic,
+  this document. See `security-practices` §4.2. When a table or column name must be dynamic,
   allow-list it against a fixed set; parameters cannot bind identifiers.
 - **Never `SELECT *` in application code.** It breaks when columns are added, transfers data
   you don't need, prevents covering-index-only scans, and hides the fact that you're pulling
@@ -300,7 +313,7 @@ during review. The same rule applies to backfills (§6.4).
 - **Retry serialization/deadlock failures** with backoff, since they are expected, not
   exceptional. Only retry when the transaction is safe to replay.
 - **Never hold a transaction open across a user interaction.** Use optimistic concurrency
-  (a `version` column) instead; see `backend-and-api.md` §6.
+  (a `version` column) instead; see `backend-practices` §6.
 
 ---
 
@@ -447,7 +460,7 @@ what production's schema is.
   that drops columns, a "sync" that deletes rows absent from the source, and any bulk delete
   driven by a filter that could match everything if a parameter comes through empty.
 - **Seed and anonymize.** Development data comes from a generator or a scrubbed dump, never
-  a raw production copy containing real personal data. See `security.md` §8.
+  a raw production copy containing real personal data. See `security-practices` §8.
 
 ---
 
@@ -496,60 +509,5 @@ Most of the above still applies; these are the differences that catch people out
 - DDL with no `lock_timeout`.
 - Backups that have never been restored.
 - The application user having `DROP` privileges.
-- A shared database written by multiple services (see `backend-and-api.md` §5.3).
+- A shared database written by multiple services (see `backend-practices` §5.3).
 - `JSONB` used to avoid designing a schema.
-
----
-
-## Review checklist
-
-**Schema**
-- [ ] Types are the most restrictive that fit; money is decimal/integer; timestamps are UTC `TIMESTAMPTZ`
-- [ ] `NOT NULL` unless nullability is meaningful and justified
-- [ ] Foreign keys present with an explicit `ON DELETE` action
-- [ ] Unique constraints enforce every real-world uniqueness rule
-- [ ] `CHECK` constraints encode domain rules
-- [ ] Primary key is a surrogate, not a natural key; not exposed if sequential
-- [ ] `created_at` / `updated_at` present; naming conventions followed
-
-**Indexes**
-- [ ] Every foreign key indexed
-- [ ] Indexes exist for hot `WHERE` / `JOIN` / `ORDER BY` paths, composite order correct
-- [ ] No redundant or unused indexes added
-- [ ] Query plan verified with `EXPLAIN ANALYZE`; no unexpected sequential scans
-- [ ] No index-defeating predicates (function on column, leading wildcard, type mismatch)
-
-**Queries**
-- [ ] Parameterized; no string-built SQL; dynamic identifiers allow-listed
-- [ ] No `SELECT *`; result sets bounded by `LIMIT`
-- [ ] No N+1; batched or eager-loaded
-- [ ] Keyset pagination for large or user-facing lists, with a unique tiebreaker
-- [ ] Batch loops that mutate their own filter column iterate by key, not offset
-- [ ] Queries expecting one row fail loudly on two
-- [ ] Restricted column lists still include the keys relations need
-- [ ] Aggregation done in the database
-
-**Transactions**
-- [ ] Scoped to one logical operation; no I/O inside
-- [ ] Read-modify-write replaced by an atomic update or explicit lock
-- [ ] Isolation level adequate for the invariant; serialization failures retried
-- [ ] Consistent lock ordering
-
-**Migrations**
-- [ ] Versioned, immutable, one logical change, reviewed
-- [ ] Compatible with the previous release running concurrently (expand/contract)
-- [ ] Tested against production-scale data
-- [ ] `CREATE INDEX CONCURRENTLY`; constraints added `NOT VALID` then validated
-- [ ] `lock_timeout` and `statement_timeout` set
-- [ ] Backfills batched, resumable, run out-of-band
-- [ ] Destructive changes isolated, preceded by a verified backup and a wait period
-- [ ] Rollback plan stated and tested
-- [ ] Squashing, if used, applied only to migrations that ran everywhere
-
-**Operations**
-- [ ] Backup restore verified within the last drill window
-- [ ] Application DB user is least-privilege
-- [ ] Connection pool sized against database limits
-- [ ] Slow queries, replication lag, and connection saturation monitored
-- [ ] No non-production environment pointed at production data
-- [ ] Destructive commands refuse to run in production without an explicit override

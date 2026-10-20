@@ -1,3 +1,15 @@
+---
+name: frontend-practices
+description: >-
+  Engineering standards for user-interface work in any framework (React, Vue, Svelte, Angular,
+  plain HTML): component boundaries, where each kind of state belongs, effect cleanup, the four
+  async states, forms, accessibility, performance, layout shift and flicker, design tokens and
+  routing. Use this whenever the user builds, changes or reviews anything a user sees - a
+  component, page, form, style, client-side state or data fetching - even when they do not ask
+  for best practices, and use it when deciding where a piece of state should live or why a UI
+  re-renders. Read references/review-checklist.md when reviewing a UI diff.
+---
+
 # Frontend and UI Practices
 
 Applies to any client-rendered or server-rendered user interface, in any framework:
@@ -211,10 +223,10 @@ Forms are where most real UI complexity lives. They deserve deliberate design.
   on every keystroke before the user has finished typing is hostile.
 - **Server validation is authoritative; client validation is a courtesy.** Mirror the rules
   for fast feedback, but always re-check server-side. The client can be bypassed entirely.
-  See `security.md` §4.
+  See `security-practices` §4.
 - **Map server field errors back to their fields.** An API returning
   `{ errors: { email: "already taken" } }` should surface next to the email input, not in a
-  generic banner. Design the error contract for this (see `backend-and-api.md` §4).
+  generic banner. Design the error contract for this (see `backend-practices` §4).
 - **Render every error for a field, not just the first.** A password failing three rules
   should say so once, not send the user through three round trips. Component libraries
   that show a single message per field usually need this behaviour turned off explicitly.
@@ -376,7 +388,7 @@ Lab numbers on a fast laptop tell you almost nothing about your actual users.
 - **Preserve scroll position on back navigation**, reset it on forward navigation.
 - **Handle unknown routes with a real 404 page** that offers a way onward.
 - **Guard protected routes on the server as well as the client.** A client-side redirect
-  is UX, not security. The data must be protected at the API. See `security.md` §3.
+  is UX, not security. The data must be protected at the API. See `security-practices` §3.
 - **Prefer the platform's view transitions to a routing library's animation layer.** The
   View Transition API animates between two DOM states, including across full page loads,
   without adopting a client-side router purely for the effect. Name the elements that
@@ -439,62 +451,6 @@ Recognize these on sight:
 - Business logic (pricing, permissions, tax) computed only on the client.
 - Secrets, API keys, or tokens in client code or env vars shipped to the browser. Anything
   in the bundle is public.
-- `localStorage` used for auth tokens (readable by any XSS); see `security.md` §2.3.
+- `localStorage` used for auth tokens (readable by any XSS); see `security-practices` §2.3.
 - Fixed pixel heights around text.
 - Infinite lists with no virtualization or pagination.
-
----
-
-## Review checklist
-
-**Component & state**
-- [ ] Presentation separated from data fetching
-- [ ] No illegal states representable in props
-- [ ] State lives at the lowest common ancestor
-- [ ] Derived values computed in render, not synced via effects
-- [ ] Shareable/refresh-surviving state (filters, tabs, pagination) is in the URL
-- [ ] Server data is in a fetch cache, not a hand-rolled global store
-
-**Effects & async**
-- [ ] Every subscription/timer/listener/request is cleaned up
-- [ ] Out-of-order responses are guarded against
-- [ ] Loading, error, empty, and success states all handled
-- [ ] Errors are recoverable and distinguish network / auth / validation / server
-- [ ] Double-submit prevented; optimistic updates roll back on failure
-
-**Forms**
-- [ ] Native `<form>` + submit handler
-- [ ] Every input has a real `<label>`, correct `type`, and `autocomplete`
-- [ ] Server errors map to their fields; user input is never cleared on failure
-- [ ] All errors for a field shown, not only the first
-- [ ] Client validation mirrored server-side
-
-**Accessibility**
-- [ ] Semantic elements; no `<div>` acting as a control
-- [ ] Full keyboard operation; visible `:focus-visible` indicator
-- [ ] Focus managed on modal open/close and route change
-- [ ] Contrast ≥ 4.5:1; information never conveyed by color alone
-- [ ] Meaningful `alt` text; `prefers-reduced-motion` respected
-- [ ] Automated axe check passes
-
-**Performance**
-- [ ] Routes and heavy components code-split
-- [ ] Images sized, modern format, dimensions set
-- [ ] Long lists virtualized or paginated; stable keys
-- [ ] Animations limited to `transform`/`opacity`
-- [ ] No new heavy dependency without a bundle-cost justification
-- [ ] Layout shift addressed: media dimensions, scrollbar gutter, font metrics
-- [ ] Theme applied before first paint, with no flash of the wrong theme
-
-**Styling**
-- [ ] Design tokens used; no hard-coded colors, spacing, or z-index
-- [ ] Styles scoped, not global
-- [ ] Responsive down to 320px and at 200% zoom
-- [ ] Components sized by container query, not viewport, where reusable
-- [ ] No fixed heights around text; long/empty content tested
-
-**Testing & errors**
-- [ ] Queries by role/name, not implementation details
-- [ ] Network mocked at the boundary; error paths covered
-- [ ] Error boundaries at route level
-- [ ] No raw exception text shown to users; client errors reported with PII scrubbed
