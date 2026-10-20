@@ -7,6 +7,11 @@ and editing rules, so the conventions below are about rules and commits, not abo
 General engineering practice is not repeated here. It lives in this repo's own skills, and
 `skills/playbook-builder/SKILL.md` is the method that produced this file.
 
+Those skills are not listed per area below, deliberately. Each carries a description saying
+when it applies, which is what loads it; repeating that here would duplicate the mechanism and
+rot the first time one is renamed. They are referenced only where this repo does something
+different, and there is exactly one such case, in Deliberate deviations.
+
 ## Stop and ask
 
 - **Rewriting published history.** The remote has been recreated once already to strip commit

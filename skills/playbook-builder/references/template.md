@@ -134,8 +134,20 @@ A task touching both <producer> and <consumer> is one unit of work in two reposi
 
 ## Conventions by area
 
-<Table mapping each module to its convention document. If none exist, say which generic
-practice skills apply instead.>
+<One table answering "what should I have read before touching this". Team conventions and
+general practice are different columns, because they answer different questions and one of
+them is optional.>
+
+| Area | Team conventions | General practice |
+|---|---|---|
+| `<dir>/` | [`<doc>`](<doc>) | `<skill>` |
+
+<Only name a general skill where you are changing what would otherwise happen: making it
+mandatory at a gate, narrowing it to a section, or recording where your convention overrides
+it. Do not restate the trigger conditions the skill's own description already carries.>
+
+<Where a local convention contradicts the general practice, say so explicitly and say which
+wins. That sentence is the one piece of information that exists nowhere else.>
 
 ---
 

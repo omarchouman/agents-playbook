@@ -278,6 +278,54 @@ around within a week. Triage exists to stop that: define a short flow, say exact
 it still runs, and make the tiebreaker explicit, because "short flow" with vague boundaries
 becomes "no flow".
 
+### Referencing general practice skills
+
+A playbook sits alongside whatever general standards the team already has available, including
+the `frontend-practices`, `backend-practices`, `database-practices`, `security-practices` and
+`git-practices` skills in this plugin. Deciding what to say about them is its own judgment, and
+the obvious answer is wrong.
+
+**Do not restate a skill's trigger conditions.** Every skill carries a description saying when
+it applies, and that description is the mechanism that loads it. Writing "for anything touching
+auth, use `security-practices`" duplicates text that already exists, costs context in every
+session, and breaks silently when a skill is renamed. If the description works, the skill
+arrives without the playbook's help; if it does not, fix the description rather than papering
+over it from here.
+
+**Reference a skill only where you are changing what would otherwise happen.** Four cases earn
+their place:
+
+- **Making it mandatory.** A description invites the agent to judge relevance. A gate can
+  remove the judgment: "Gate 4 does not close until the relevant practice skill has been read
+  and the change verified against it." Use this for whatever the team treats as
+  non-negotiable, not for everything.
+- **Binding it to a moment.** Descriptions trigger on subject matter. A gate triggers on
+  position in the pipeline, which is information a description cannot express: before writing
+  code, before the review gate closes, after a contract changes.
+- **Resolving a conflict.** Where the team's convention contradicts the general skill, say
+  which wins and why. This is the most valuable sentence in the whole playbook, because it is
+  the one thing that exists nowhere else, and without it an agent will follow the general rule
+  and be confidently wrong.
+- **Narrowing to a section.** "Apply `security-practices` §3 to every endpoint that takes an
+  id" is actionable in a way that pointing at an entire skill is not.
+
+The natural home is a table at the implementation gate, mapping each area of the codebase to
+what governs it, so one lookup answers "what should I have read before touching this":
+
+```markdown
+| Area | Team conventions | General practice |
+|---|---|---|
+| `api/` | [`docs/api-conventions.md`](docs/api-conventions.md) | `backend-practices` |
+| `web/` | none yet | `frontend-practices` |
+| `db/migrations/` | [`docs/db.md`](docs/db.md) | `database-practices` (§6 before any migration) |
+| anything with auth or user input | [`docs/authz.md`](docs/authz.md) | `security-practices` |
+```
+
+**State the dependency honestly.** A playbook that references skills breaks for anyone without
+them installed, which matters once it is committed to a shared repository. Either note what the
+repo expects to be installed, or phrase references so they degrade: a line naming the general
+principle still works when the skill is absent, while a bare skill name does not.
+
 ### Standards
 
 Write every standards rule in this form:
@@ -362,6 +410,10 @@ one nobody believes.
 - A skill whose description is too vague to trigger, making its content unreachable.
 - Interviewing the user for facts the repository plainly states.
 - A playbook long enough that reading it costs more than the mistakes it prevents.
+- Restating a skill's own trigger conditions, which duplicates the mechanism that already
+  loads it and rots the moment the skill is renamed.
+- Pointing at a general skill without saying what the team does differently, which leaves the
+  one genuinely local piece of information unwritten.
 - A workflow written as prose steps rather than gates, so nothing says when one is skipped.
 - Treating separate repositories under one parent folder as a monorepo, which hides the merge
   ordering problem until a client ships against an endpoint that does not exist yet.
