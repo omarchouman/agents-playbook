@@ -149,6 +149,17 @@ it. Do not restate the trigger conditions the skill's own description already ca
 <Where a local convention contradicts the general practice, say so explicitly and say which
 wins. That sentence is the one piece of information that exists nowhere else.>
 
+<If the table names any skill, declare the dependency once, here, rather than hedging at each
+reference:>
+
+```markdown
+### Expected tooling
+
+General practice comes from <plugin>: `<install command>`. If a referenced skill is not in
+your available skills, say so once and carry on. Every rule in this file stands without it;
+what you lose is the depth behind the pointer, not the rule.
+```
+
 ---
 
 ## Tech stack

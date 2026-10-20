@@ -321,10 +321,36 @@ what governs it, so one lookup answers "what should I have read before touching 
 | anything with auth or user input | [`docs/authz.md`](docs/authz.md) | `security-practices` |
 ```
 
-**State the dependency honestly.** A playbook that references skills breaks for anyone without
-them installed, which matters once it is committed to a shared repository. Either note what the
-repo expects to be installed, or phrase references so they degrade: a line naming the general
-principle still works when the skill is absent, while a bare skill name does not.
+**Make references additive, never load-bearing.** A playbook that cites skills is committed to
+a shared repository, where a teammate may not have them installed. Do not solve that by hedging
+at each site: "if `security-practices` is available, use it" tells an agent nothing about what
+to do when it is not, so the rule quietly evaporates for exactly the reader who needed it most.
+
+Write the rule so it stands on its own and let the pointer add depth:
+
+```markdown
+✗ If `security-practices` is available, follow it for authorization.
+
+✓ **Every endpoint checks ownership of the object, not just the route.** Returning another
+  tenant's row to an authenticated caller is the most common serious bug in this codebase.
+  `security-practices` §3 has the full treatment.
+```
+
+The second works whether or not the skill is installed, because the sentence carrying the rule
+does not depend on it. The first is a conditional wrapped around the only content.
+
+Then **declare the dependency once, at the top**, rather than at every reference:
+
+```markdown
+## Expected tooling
+
+General practice comes from the `agents-playbook` plugin: `/plugin install agents-playbook`.
+If a referenced skill is not in your available skills, say so once and carry on. Every rule
+below stands without it; what you lose is the reasoning behind the pointer, not the rule.
+```
+
+That tells an agent what to do in the absent case, which "if available" does not, and it keeps
+the hedge in one place instead of multiplying it across the file.
 
 ### Standards
 
