@@ -12,7 +12,18 @@ so read the section when an item needs its reasoning.
 - [ ] Every collection paginated with an enforced max page size
 - [ ] Sort/filter fields allow-listed
 - [ ] Consistent error envelope with a stable `code` and a `request_id`
+- [ ] Errors carry a next step and an explicit `retryable` flag
+- [ ] Field types and cardinality stable across responses; deprecations visible in the body
 - [ ] No internal details (stack traces, SQL, hostnames) in responses
+
+**Legibility to its callers**
+- [ ] Operations named verb plus noun; paths still address nouns
+- [ ] Descriptions say when the operation applies and when to use a different one
+- [ ] Units in field names; closed sets enumerated, not free text
+- [ ] A worked request and response example per operation, generated or asserted
+- [ ] Dry run available on destructive and bulk operations
+- [ ] Field selection supported and allow-listed
+- [ ] Realistic task prompts exercise the published schema in CI
 
 **Validation & auth**
 - [ ] Schema validation at the boundary before any logic

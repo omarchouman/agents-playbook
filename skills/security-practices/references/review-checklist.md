@@ -23,6 +23,9 @@ so read the section when an item needs its reasoning.
 - [ ] Mass assignment prevented by an explicit field allow-list
 - [ ] Writes take the validated result, never the raw request body
 - [ ] Multi-tenant queries scoped at a layer that can't be bypassed
+- [ ] Non-human callers hold their own identity, not a shared or borrowed one
+- [ ] Authority ceilings enforced server-side, with a human decision above the limit
+- [ ] Destructive and bulk operations reviewable via dry run before they run
 - [ ] Tests assert denial for anonymous, other-user, and lower-privilege callers
 
 **Input**
@@ -36,6 +39,9 @@ so read the section when an item needs its reasoning.
 - [ ] No shell interpolation; path traversal prevented by resolve-and-verify
 - [ ] No untrusted deserialization; no user input reaching `eval` or a template compiler
 - [ ] SSRF controls on any user-supplied URL fetch; metadata endpoint blocked
+- [ ] Text reaching a model is provenance-labelled, and no action of consequence depends on
+      how a model read it
+- [ ] Output derived from untrusted input stays untrusted when stored or displayed
 - [ ] Uploads type-sniffed, size-limited, renamed, stored off-origin, never executed
 
 **Secrets & transport**

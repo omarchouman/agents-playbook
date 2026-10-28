@@ -53,6 +53,14 @@ process boundary.
   like `/users/{id}/orders/{id}/items/{id}` from ever forming.
 - **Never expose sequential database ids in public URLs.** They leak volume and enable
   enumeration. Use UUIDv7/ULID (sortable, index-friendly) or a public opaque id.
+- **Name the operation verb-plus-noun, even though the path is a noun.** These are two
+  different layers and the rules only look contradictory. The path addresses a thing
+  (`POST /orders/{id}/refunds`); the operation's *name*, which is what appears in an OpenAPI
+  `operationId`, a generated client method, an MCP tool listing or a function-calling schema,
+  has no surrounding HTTP method to supply the verb, so it has to carry its own:
+  `refund_order`, `cancel_reservation`, `list_available_vehicles`. A caller choosing between
+  forty tool names reads only those names. `order_refunds` does not say whether it creates one
+  or lists them, and a reader guessing wrong half the time will stop using the API correctly.
 
 ### 2.2 HTTP semantics
 
@@ -96,6 +104,11 @@ monitoring, alerting, and retry logic.
 - **Filtering, sorting, and field selection go in query parameters**, and every sortable
   or filterable field must be **allow-listed**. Never interpolate a client-supplied column
   name into a query.
+- **Let the caller ask for fewer fields** (`?fields=id,status,pickup_at`). Without it every
+  consumer pays for the widest response any consumer needed, which on a list endpoint is the
+  difference between a page of data and a page of data plus every nested relation. Allow-list
+  the selectable fields like any other client-supplied name, and keep the default response
+  the full documented shape so omitting the parameter is never surprising.
 - **Return a consistent envelope** for collections so clients can write one parser:
 
   ```json
@@ -112,8 +125,18 @@ monitoring, alerting, and retry logic.
   field required, changing a default.
 - **Clients must ignore unknown fields.** State this in your API documentation and follow it
   in your own client code. It is what makes additive evolution possible.
+- **Keep the shape of a field stable, not just its presence.** A field that is a string on
+  Monday and an object on Tuesday, or that is sometimes a single item and sometimes an array,
+  breaks every consumer that parsed it the other way, and breaks them at runtime rather than
+  at compile time. If a value needs to become richer, add a new field beside it rather than
+  changing what the old one holds. The same goes for a field that is sometimes absent and
+  sometimes null: pick one and keep it, because consumers branch on the difference.
 - **Deprecate on a schedule, not on a whim.** Announce, add `Deprecation`/`Sunset` headers,
   measure remaining usage per client, then remove. Never remove something still in use.
+- **Put the deprecation in the response body too, not only in headers.** Many consumers never
+  see headers: a generated client surfaces the parsed body, and a model given a tool result is
+  shown that body and nothing else. A `warnings` array carrying the same notice reaches them,
+  and reaches the human reading a log of the response.
 
 ### 2.5 GraphQL specifics
 
@@ -124,6 +147,53 @@ monitoring, alerting, and retry logic.
 - **Authorize per field, not just per query.** A permitted parent does not imply permitted
   children.
 - **Disable introspection and persist queries in production** for public-facing APIs.
+
+### 2.6 APIs that models and tools consume
+
+An API read by a program through documentation you wrote, and an API read by a model from a
+schema it was handed, fail differently. A human integrator who finds the docs ambiguous opens
+a ticket; a model picks the reading that looks most plausible and calls it. So the interface
+has to answer, on its own, questions a human would have asked you.
+
+Most of this is good practice for any API and merely becomes unavoidable here.
+
+- **Say when an operation applies and when it does not.** A description that only restates the
+  name (`cancel_reservation`: "Cancels a reservation") adds nothing. Say what it is for, what
+  it is not for, and what to use instead: "Cancels a confirmed reservation and starts any
+  refund. Not for a reservation already picked up, which is `close_rental`, and not for a
+  quote, which expires on its own." The wrong-tool call is far more common than the
+  wrong-argument call, and this is the only text that prevents it.
+- **Put units in the field name**, not in prose next to it: `timeout_seconds`,
+  `amount_cents`, `distance_km`, `expires_at`. A bare `timeout` gets filled in with
+  milliseconds by one caller and seconds by another, and both think they read the docs. This
+  is the same rule `database-practices` §2.4 applies to column names, and the two should
+  agree so a value keeps its name end to end.
+- **Use enumerated values rather than free text** wherever the set is closed. An unconstrained
+  string invites `"cancelled"`, `"canceled"`, `"CANCELLED"` and `"cancel"` for one state, and
+  every consumer then needs its own normalization. Enumerate them, document them, and reject
+  anything else at the boundary (§3). `database-practices` §2.1 makes the same point about
+  storage, and the two sets should be the same set: a value the database accepts but the API
+  rejects, or the reverse, is a bug waiting for whichever layer is reached first.
+- **Give every operation a worked example**, request and response, with realistic values. An
+  example resolves ambiguity that prose cannot: it shows the date format, whether the id is
+  prefixed, whether an empty list is `[]` or absent. Examples are also the cheapest thing to
+  get wrong silently, so generate them from real calls or assert them in tests.
+- **Offer a dry run on anything destructive or expensive.** A `dry_run` flag that validates,
+  reports exactly what would change, and writes nothing lets a caller check its understanding
+  before committing. It converts "cancel these 40 reservations" from an irreversible guess
+  into a reviewable plan, which is the difference between a caller that can be trusted with
+  the operation and one that cannot.
+- **Make the hard parts impossible rather than documented.** Every constraint you express in
+  the schema, as a type, an enum, a required field or a range, is a constraint no caller can
+  violate. Every constraint you express only in prose is one they can. Prefer the schema.
+
+**Test that it is usable, not only that it works.** A contract test proves the endpoint
+behaves; it does not prove a caller reading the schema can tell which operation to use. Keep a
+small set of realistic task prompts that exercise the API through its published schema, run
+them in CI, and assert the outcome: the right operation chosen, the arguments well formed, the
+error understood and recovered from. These catch what no unit test can, namely a name or a
+description that reads clearly to the person who wrote it and ambiguously to everyone else.
+Treat a failure as a documentation defect first and a caller defect second.
 
 ---
 
@@ -156,6 +226,8 @@ Return one machine-readable shape for every error in the service:
   "error": {
     "code": "insufficient_funds",
     "message": "Balance is below the transfer amount.",
+    "next_step": "Reduce amount to at most 250.00, or add funds, then retry.",
+    "retryable": false,
     "details": [
       { "field": "amount", "code": "max_exceeded", "message": "Must be ≤ 250.00" }
     ],
@@ -166,6 +238,17 @@ Return one machine-readable shape for every error in the service:
 
 - **`code` is a stable, documented string** clients can branch on. Never make clients parse
   `message`. It is for humans and may be localized or reworded.
+- **Say what to do next, not only what went wrong.** An error that states the problem and
+  stops leaves every caller to work out the remedy, and they will each work out a different
+  one. "Reduce amount to at most 250.00, or add funds, then retry" is actionable; "insufficient
+  funds" is a label. This matters most where the caller cannot ask a question back, which is
+  true of a retry loop and of anything driven by a model.
+- **Carry an explicit `retryable` flag.** Callers otherwise infer it from the status code, and
+  the inference is wrong often enough to matter: some `409`s clear on their own and some never
+  will, a `429` is always worth retrying and a `400` never is, and a `503` from a load shedder
+  differs from a `503` from a dependency that is gone. State it, and pair it with
+  `Retry-After` where you know the timing. A caller that does not have to guess will not guess
+  wrong, and will not hammer an endpoint that was never going to succeed.
 - **`request_id` on every response**, success and failure. This is what turns a support
   ticket into a log query.
 
@@ -528,6 +611,13 @@ Conflating them causes restart loops when a database blips.
 ## 13. Anti-patterns
 
 - Unbounded list endpoints with no pagination.
+- An operation name that omits the verb, so a caller cannot tell create from list.
+- A field holding a duration, size or amount with no unit in its name.
+- A closed set of values typed as free text.
+- An error that names the problem and not the remedy, or that leaves retryability to be
+  inferred from the status code.
+- A field whose type or cardinality changes between responses.
+- A destructive or bulk operation with no dry run.
 - `200 OK` with an error payload.
 - HTTP client with no timeout.
 - Retrying non-idempotent operations.

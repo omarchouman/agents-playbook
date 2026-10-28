@@ -406,6 +406,12 @@ Lab numbers on a fast laptop tell you almost nothing about your actual users.
 - **Handle offline and flaky connections.** Detect offline state, queue or block mutations,
   and tell the user. Retry idempotent GETs with backoff; never blind-retry non-idempotent
   requests.
+- **Use what the error contract already tells you instead of re-deriving it.** Where the API
+  returns a remedy and an explicit retryable flag (`backend-practices` §4.1), show the remedy
+  as the error text and let the flag decide whether a retry control appears at all. Inferring
+  both from the status code duplicates a decision the server already made with more
+  information, and the two will drift: an offered retry on an error that can never succeed
+  trains users to click it forever.
 - **Report client errors to a monitoring service** with enough context (route, release,
   user id if permitted, breadcrumbs) to reproduce, and **scrub PII before sending**.
 
