@@ -27,8 +27,11 @@ Nothing else to configure. Each skill declares when it applies and loads itself.
 | `security-practices` | Auth, permissions, user input, uploads, secrets, PII | AuthN and sessions, object-level authorization, the injection classes, SSRF, uploads, secrets, headers, audit logging, data protection, supply chain |
 | `git-practices` | Commits, messages, branches, pull requests, rebases | Atomic commits, message form, branching models, history rewriting, merge strategy, force-push safety, PR size and review, repo hygiene, recovery, protection |
 | `playbook-builder` | "Codify how we work", "write our standards" | Builds a `CLAUDE.md` for **your** repo as an ordered gate pipeline, from tracked issue to closed loop, plus the standards behind it |
+| `remove-slop` | "Audit this", "why is it slow", "is it ready to ship" | Audits an app that already exists: measured performance, payload, missing states, default templates, absent 404 and meta tags, keys in the bundle, mobile |
 
-The first five are general practice. `playbook-builder` is the one that makes this yours.
+The first five are general practice, applied while code is written. `playbook-builder` is the
+one that makes this yours. `remove-slop` is the only one that runs backwards, over an app that
+already exists.
 
 ## Two things this gives you
 
@@ -61,6 +64,21 @@ Try it with:
 
 > Use playbook-builder to write an engineering playbook for this repo.
 
+**Auditing what you already shipped.** `remove-slop` goes the other way: it starts from a
+running app and asks what is wrong with it. It runs a deterministic scan first, then up to four
+read-only passes over payload, data access, client behaviour and exposure, and returns a ranked
+list where every finding carries the command output or the file and line that proves it. A
+finding it could not measure is reported as unverified rather than as a defect.
+
+> /agents-playbook:remove-slop
+
+Plugin components are namespaced, so that is the full name. For a bare `/remove-slop`, add a
+one-line personal command:
+
+```bash
+echo 'Use the remove-slop skill to audit this app.' > ~/.claude/commands/remove-slop.md
+```
+
 ## Reviewing with these
 
 Every practice skill ships a condensed checklist at
@@ -83,6 +101,7 @@ For **Codex, Cursor, or any agent that reads a project file**, point at the skil
 - Schema, query or migration work → agents-playbook/skills/database-practices/SKILL.md
 - Auth, user input, secrets or PII → agents-playbook/skills/security-practices/SKILL.md
 - Before any commit or pull request → agents-playbook/skills/git-practices/SKILL.md
+- Auditing an app that already exists → agents-playbook/skills/remove-slop/SKILL.md
 ```
 
 Or vendor the whole thing:
@@ -91,7 +110,7 @@ Or vendor the whole thing:
 git submodule add https://github.com/omarchouman/agents-playbook.git docs/playbook
 ```
 
-Prefer this over a `CLAUDE.md` import of all five: imports load every session whether relevant or
+Prefer this over a `CLAUDE.md` import of all six: imports load every session whether relevant or
 not, which is the cost the skill format exists to avoid.
 
 ## Layout

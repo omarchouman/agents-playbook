@@ -1,7 +1,7 @@
 {
   "name": "agents-playbook",
   "version": "1.0.0",
-  "description": "Language-agnostic engineering standards as triggered skills (frontend, backend, database, security, git), plus a builder that turns your team's own conventions into a playbook agents will actually follow.",
+  "description": "Language-agnostic engineering standards as triggered skills (frontend, backend, database, security, git), a builder that turns your team's own conventions into a playbook agents will actually follow, and an auditor that finds what is already wrong with an app you shipped.",
   "author": {
     "name": "Omar Chouman",
     "url": "https://github.com/omarchouman"
@@ -20,7 +20,11 @@
     "backend",
     "git",
     "playbook",
-    "standards"
+    "standards",
+    "audit",
+    "performance",
+    "polish",
+    "launch"
   ],
   "skills": [
     "./skills/frontend-practices",
@@ -28,6 +32,7 @@
     "./skills/database-practices",
     "./skills/security-practices",
     "./skills/git-practices",
-    "./skills/playbook-builder"
+    "./skills/playbook-builder",
+    "./skills/remove-slop"
   ]
 }
