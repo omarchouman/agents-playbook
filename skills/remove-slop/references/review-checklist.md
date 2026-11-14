@@ -61,7 +61,11 @@ one would have had.
 - [ ] Share preview image set
 - [ ] Custom 404 that returns 404
 - [ ] `robots.txt` and sitemap present for anything public
-- [ ] Privacy policy, terms and a contact route if anything is collected
+- [ ] Privacy policy exists, and covers what is collected, why, retention and deletion
+- [ ] Terms of service exist wherever there are accounts, payment or user content
+- [ ] Cookie policy exists if any non-essential cookie is set
+- [ ] Tracking does not fire before consent is given
+- [ ] Contact route reachable
 - [ ] No placeholder copy, no dead links, no console noise
 
 **Mobile**

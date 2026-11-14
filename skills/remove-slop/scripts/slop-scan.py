@@ -54,6 +54,33 @@ PLACEHOLDERS = [
     "john doe", "jane doe", "replace this text", "add your description",
     "tailwind starter", "your product name",
 ]
+# Trackers that set cookies, so their presence makes consent and a cookie policy
+# obligations rather than suggestions. Cookieless analytics are deliberately absent:
+# Plausible, Fathom and Umami set no cookie, which is why swapping to one is often a
+# cheaper fix than building a consent gate.
+TRACKING_PATTERNS = [
+    "googletagmanager.com", "google-analytics.com", "gtag(", "analytics.js",
+    "connect.facebook.net", "fbq(", "hotjar", "mixpanel", "clarity.ms",
+    "doubleclick.net", "snap.licdn.com", "analytics.tiktok.com", "cdn.segment.com",
+    "fullstory", "smartlook", "logrocket",
+]
+COOKIELESS_ANALYTICS = ["plausible.io", "usefathom.com", "simpleanalytics", "umami"]
+# A consent manager, or a component that looks like a hand-rolled one.
+CONSENT_PATTERNS = [
+    "cookiebot", "onetrust", "osano", "termly", "klaro", "cookieconsent",
+    "cookie-consent", "cookieconsent", "consentmanager", "iubenda", "usercentrics",
+    "cookiebanner", "cookie-banner", "gdpr-consent",
+]
+PAYMENT_PATTERNS = [
+    "stripe", "paypal", "paddle.com", "lemonsqueezy", "braintree",
+    "razorpay", "checkout.com", "mollie",
+]
+ACCOUNT_PATTERNS = [
+    "next-auth", "@clerk/", "auth0", "supabase/auth", "firebase/auth", "passport",
+    "devise", "django.contrib.auth", "laravel/breeze", "laravel/jetstream",
+    "type=\"password\"", "type='password'",
+]
+
 SECRET_PATTERNS = [
     (r"\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{10,}", "Stripe secret key"),
     (r"\bAIza[A-Za-z0-9_\-]{30,}", "Google API key"),
@@ -134,6 +161,31 @@ class Project(object):
             prefix = d + os.sep
             out.extend(f for f in self.files if f.startswith(prefix))
         return out
+
+    def signals(self):
+        """What the app does, which decides whether a legal document is required.
+
+        Read from source and manifests rather than guessed, because the difference
+        between a brochure page and an app with accounts changes which of these
+        documents is an obligation and which is paperwork nobody needs.
+        """
+        if "signals" in self._cache:
+            return self._cache["signals"]
+        blob = " ".join(
+            self.read(f) for f in self.markup + self.source
+            + [x for x in self.files if os.path.basename(x) in
+               ("package.json", "composer.json", "requirements.txt", "Gemfile")]
+        ).lower()
+        has = lambda pats: any(x.lower() in blob for x in pats)
+        sig = {
+            "tracking": has(TRACKING_PATTERNS),
+            "cookieless_analytics": has(COOKIELESS_ANALYTICS),
+            "consent": has(CONSENT_PATTERNS),
+            "payment": has(PAYMENT_PATTERNS),
+            "accounts": has(ACCOUNT_PATTERNS) or "<form" in blob,
+        }
+        self._cache["signals"] = sig
+        return sig
 
     def is_web(self):
         """Only web apps get the crawler and share-preview checks."""
@@ -239,11 +291,51 @@ def check_routes(p):
             "missing-404", HIGH, "No custom 404 page",
             "No 404, not-found or error route file found",
             "The framework error page is where visitors leave"))
-    if not p.path_matches(r"(privacy|terms|tos|legal)"):
+    return found
+
+
+def check_legal_documents(p):
+    """Privacy policy, terms and cookie policy, each judged against what the app does.
+
+    Split into separate findings on purpose. Reported as one line they read as
+    paperwork and get deferred together; separately, each carries its own trigger
+    and its own consequence, and the privacy one is usually the obligation.
+    """
+    found = []
+    if not p.is_web():
+        return found
+    sig = p.signals()
+    collects = sig["accounts"] or sig["payment"] or sig["tracking"]
+
+    if not p.path_matches(r"privacy"):
         found.append(Finding(
-            "missing-legal", MEDIUM, "No privacy policy or terms route",
-            "No file or route matching privacy, terms or legal",
-            "Blocks payment processors and app store review"))
+            "missing-privacy", HIGH if collects else MEDIUM, "No privacy policy route",
+            "No file or route matching privacy%s" % (
+                ", and the app has forms, accounts, payment or analytics" if collects else ""),
+            "Processing personal data without the notice the law requires, and payment "
+            "processors and app stores both ask for it by name"))
+
+    if not p.path_matches(r"(^|/|[-_])(terms|tos|eula|conditions)([-_./]|$)"):
+        found.append(Finding(
+            "missing-terms",
+            HIGH if (sig["payment"] or sig["accounts"]) else LOW,
+            "No terms of service route",
+            "No file or route matching terms%s" % (
+                ", and the app takes payment or has accounts"
+                if (sig["payment"] or sig["accounts"]) else ""),
+            "No stated basis for suspending abuse, no liability limit, no governing law"))
+
+    if sig["tracking"]:
+        if not p.path_matches(r"cookie[-_]?(policy|notice)|(^|/)cookies?\.(html|md|mdx|jsx?|tsx?|vue|php)$"):
+            found.append(Finding(
+                "missing-cookie-policy", HIGH, "Cookie-setting tracker with no cookie policy",
+                "Tracking script present and no cookie policy route found",
+                "Non-essential cookies set with nothing telling the user what they are"))
+        if not sig["consent"]:
+            found.append(Finding(
+                "tracking-without-consent", HIGH, "Tracking appears to run without a consent gate",
+                "Tracking script present and no consent manager found in source",
+                "Collection before a lawful basis exists, which is the part regulators act on"))
     return found
 
 
@@ -384,7 +476,8 @@ def check_error_tracking(p):
 
 
 CHECKS = [
-    check_head_tags, check_crawler_files, check_routes, check_fonts,
+    check_head_tags, check_crawler_files, check_routes, check_legal_documents,
+    check_fonts,
     check_images, check_bundle_size, check_bundle_secrets, check_env_committed,
     check_console_noise, check_placeholders, check_error_tracking,
 ]
@@ -392,7 +485,8 @@ CHECKS = [
 ALL_CHECK_IDS = {
     "missing-viewport", "default-title", "missing-description", "missing-og-image",
     "missing-canonical", "default-favicon", "missing-robots", "missing-sitemap",
-    "missing-404", "missing-legal", "hotlinked-fonts", "raster-images",
+    "missing-404", "missing-privacy", "missing-terms", "missing-cookie-policy",
+    "tracking-without-consent", "hotlinked-fonts", "raster-images",
     "large-bundle", "bundle-credentials", "env-committed", "console-logs",
     "placeholder-copy", "no-error-tracking",
 }
@@ -439,7 +533,9 @@ def _dirty_project(root):
            "<html><head><title>Vite + React</title>"
            "<link rel=\"icon\" href=\"/vite.svg\">"
            "<link href=\"https://fonts.googleapis.com/css2?family=Inter\" rel=\"stylesheet\">"
-           "</head><body><h1>Lorem ipsum dolor sit amet</h1></body></html>")
+           "<script src=\"https://www.googletagmanager.com/gtag/js?id=G-X\"></script>"
+           "</head><body><h1>Lorem ipsum dolor sit amet</h1>"
+           "<form><input type=\"password\"></form></body></html>")
     _write(root, "package.json", json.dumps({"name": "demo", "dependencies": {"react": "18.3.1"}}))
     _write(root, "src/app.js", "\n".join("console.log(%d);" % i for i in range(8)))
     _write(root, "dist/assets/index.js", "var k='sk_live_%s';\n" % ("a" * 24) + "x" * LARGE_JS_BYTES)
@@ -464,6 +560,7 @@ def _clean_project(root):
     _write(root, "src/app.js", "export const boot = () => true;\n")
     _write(root, "src/routes/404.jsx", "export default function NotFound() { return null; }\n")
     _write(root, "src/routes/privacy.jsx", "export default function Privacy() { return null; }\n")
+    _write(root, "src/routes/terms.jsx", "export default function Terms() { return null; }\n")
     _write(root, "public/robots.txt", "User-agent: *\n")
     _write(root, "public/sitemap.xml", "<urlset></urlset>")
     _write(root, "dist/assets/index.js", "export const a = 1;\n")

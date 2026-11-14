@@ -4,7 +4,7 @@ description: >-
   Audits an application that already exists for the defects that make it feel unfinished or
   machine-generated: slow pages, missing loading and error states, N+1 queries, oversized
   JavaScript, a default template nobody changed, no 404 page, no meta description, no sitemap,
-  no rate limit on generation endpoints, keys shipped in the client bundle, and a mobile layout
+  no privacy policy, terms or cookie consent, no rate limit on generation endpoints, keys shipped in the client bundle, and a mobile layout
   nobody opened. Use this whenever the user asks to clean up, polish, audit, harden, speed up or
   ship an app, says it feels slow, janky, cheap, unfinished or AI-generated, asks what is wrong
   with it, or asks whether it is ready to launch, and use it when they invoke it directly as
@@ -223,9 +223,31 @@ What a visitor, a crawler or a reviewer needs before the app counts as a real pr
   between a click and a scroll past.
 - **Check `robots.txt` and a sitemap exist for anything public.** Without them a crawler
   discovers only what it stumbles into.
-- **Check privacy policy, terms and a contact route exist if the app collects anything.**
-  These are table stakes for a payment processor and for most app stores, and their absence
-  is the first thing a reviewer notices.
+- **Check the privacy policy exists, and treat its absence as a defect rather than a
+  nicety.** Any app with a form, an account, server logs or analytics is processing personal
+  data, which in the EU, the UK, California and a growing list of others carries a legal
+  obligation to say what is collected, why, how long it is kept and how to have it deleted.
+  A generated app almost never has one, because nothing in the build fails without it. The
+  cost is regulatory exposure and a blocked payment processor, and the fix is cheap only
+  before launch.
+- **Check the terms of service exist wherever there are accounts, payment or user content.**
+  Without them there is no stated basis for suspending an abusive account, no limitation of
+  liability and no governing law, so the first dispute is argued from nothing. Stripe, the
+  app stores and most B2B procurement reviews all ask for them by name.
+- **Check the cookie policy and the consent mechanism when anything non-essential is set.**
+  This one is missed most often, because the tracker usually arrives as a single analytics
+  snippet that nobody thinks of as data collection. If the app loads Google Analytics, a
+  Meta pixel, a session recorder or any advertising tag, consent is required before the tag
+  runs, not after, and a banner that merely announces cookies while setting them is the
+  common non-compliant pattern rather than a fix.
+- **Check whether tracking fires before consent is given.** Load the page with a clean
+  profile and look at the network requests and the cookies set before any interaction. A
+  consent banner that does not gate the tag is worse than no banner, because it documents
+  that the collection was known about. Cookieless analytics such as Plausible or Fathom
+  avoid the whole question, which is often the better fix.
+- **Check a contact route exists.** Data-protection law assumes a way to reach someone, and
+  independently of that, an app with no contact page cannot be told about the bug you just
+  shipped.
 - **Check the app behaves on a shared link.** A deep link that only works after a client-side
   navigation is broken for everyone arriving from outside.
 

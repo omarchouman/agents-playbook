@@ -91,9 +91,18 @@ Confirmed items here outrank everything else in the report.
 | No share preview image | Grep for `og:image` | Shared links render as a grey box | public |
 | No canonical URL | Grep for `canonical` | Duplicate URLs split ranking | public |
 | No `robots.txt` or sitemap | Request both paths | Crawlers find only what they stumble into | public |
-| No privacy policy or terms | Check the routes | Blocks payment processors and app stores | public |
+| No privacy policy | Check the routes, then whether the app has forms, accounts, payment or analytics | Processing personal data with none of the notice the law requires | any |
+| No terms of service | Check the routes, weighted by whether there are accounts, payment or user content | No basis to suspend abuse, no liability limit, no governing law | any |
+| No cookie policy | Only where a cookie-setting tracker is present | Non-essential cookies set with nothing explaining them | any |
+| Tracking runs before consent | Load with a clean profile, watch requests and cookies before any click | Collection with no lawful basis, and a banner that documents it | any |
 | No contact route | Check the routes | No way to report the bug you just shipped | public |
 | Deep link only works after client navigation | Open the URL directly in a new tab | Broken for everyone arriving from outside | public |
+
+Privacy, terms and cookies are listed separately on purpose. Reported as one line they read
+as paperwork and get deferred together, and the privacy one is usually the obligation rather
+than the nicety. Cookieless analytics such as Plausible or Fathom set no cookie, so they
+trigger neither of the last two rows, which makes swapping to one a cheaper fix than building
+a consent gate.
 
 ## Mobile and devices
 
