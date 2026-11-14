@@ -60,7 +60,7 @@ rewrite has stopped being an audit.
 
 Work out what the app is before judging it, and let the cheap deterministic pass go first.
 
-- **Run `scripts/slop-scan.py` first, and read its output before anything else.** It is
+- **Run [scripts/slop-scan.py](scripts/slop-scan.py) first, and read its output before anything else.** It is
   deterministic, it finishes in seconds, and it answers the questions every later pass would
   otherwise repeat: what the stack is, where the build output lands, which routes exist. It
   also settles the mechanical items outright, so no agent spends a turn deciding whether a
